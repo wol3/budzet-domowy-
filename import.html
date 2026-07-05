@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Import danych z Excela — Budżet Domowy</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div class="login-screen">
+    <div class="login-card" style="max-width:460px;text-align:left;">
+      <div style="text-align:center;font-size:40px;">📥</div>
+      <h1 style="text-align:center;">Import z Excela</h1>
+      <p class="login-sub" style="text-align:center;">
+        Jednorazowe wgranie danych z arkusza do bazy.
+      </p>
+      <p id="who" style="font-size:14px;color:var(--text-2);"></p>
+      <label class="field">
+        <span>Miesiąc docelowy</span>
+        <input id="month" type="month" />
+      </label>
+      <button id="go" class="btn-primary" disabled>Wgraj dane do bazy</button>
+      <p id="status" style="font-size:14px;min-height:20px;margin:6px 0 0;"></p>
+      <p style="font-size:12px;color:var(--text-2);margin:8px 0 0;">
+        Uwaga: nadpisze dane w wybranym miesiącu. Po udanym imporcie tę stronę
+        można usunąć — nie jest częścią aplikacji.
+      </p>
+      <a href="./" style="text-align:center;font-size:14px;color:var(--accent);text-decoration:none;">← Wróć do aplikacji</a>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { firebaseConfig } from "./js/config.js";
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const id = () => "e" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    const withIds = (arr) => arr.map((e) => ({ id: id(), monthlyLimit: 0, ...e }));
+
+    // Dane wyciągnięte z zakładki MAIN_v2 (suma Mati 4540,47 / Kinia 5400 — zgodne z arkuszem).
+    const SEED = {
+      income: { matiSalary: 11800, kiniaSalary: 9500, benefit800: 800 },
+      mortgage: { totalInstallment: 1511.62, coveredBy800: 800 },
+      buffer: 400,
+      expensesMati: withIds([
+        { category: "Czynsz mieszkanie", amount: 714.25, paid: true },
+        { category: "Internet", amount: 80.6, paid: true },
+        { category: "Abonament telefon", amount: 150, paid: false },
+        { category: "Trener siłownia", amount: 600, paid: true },
+        { category: "Prąd", amount: 230, paid: true },
+        { category: "Paliwo", amount: 500, paid: false },
+        { category: "Fryzjer", amount: 80, paid: false },
+        { category: "Przedszkole", amount: 240, paid: false },
+        { category: "Konto Ignaśka", amount: 100, paid: true },
+        { category: "Inne", amount: 350, paid: false },
+        { category: "Rata Cupra", amount: 784, paid: false },
+      ]),
+      expensesKinia: withIds([
+        { category: "Życie", amount: 4000, paid: false },
+        { category: "Inne", amount: 400, paid: false },
+        { category: "Dziecko", amount: 400, paid: false },
+        { category: "Trener siłownia", amount: 600, paid: false },
+      ]),
+    };
+
+    const $ = (i) => document.getElementById(i);
+    const now = new Date();
+    $("month").value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        $("who").textContent = `Zalogowany jako: ${user.email}`;
+        $("go").disabled = false;
+      } else {
+        $("who").textContent = "Nie jesteś zalogowany. Otwórz najpierw aplikację i zaloguj się przez Google, potem wróć tutaj.";
+        $("go").disabled = true;
+      }
+    });
+
+    $("go").addEventListener("click", async () => {
+      const monthId = $("month").value;
+      if (!monthId) return;
+      if (!confirm(`Wgrać dane z Excela do miesiąca ${monthId}? Nadpisze istniejące dane tego miesiąca.`)) return;
+      $("go").disabled = true;
+      $("status").textContent = "Zapisywanie…";
+      $("status").style.color = "var(--text-2)";
+      try {
+        await setDoc(doc(db, "budgets", monthId), SEED);
+        $("status").textContent = "✅ Gotowe! Dane wgrane. Wróć do aplikacji i odśwież.";
+        $("status").style.color = "var(--accent-2)";
+      } catch (e) {
+        console.error(e);
+        $("status").textContent = "❌ Błąd: " + (e.message || e);
+        $("status").style.color = "var(--danger)";
+        $("go").disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
