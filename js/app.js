@@ -159,9 +159,21 @@ function boot() {
       el("login-screen").hidden = true;
       el("app").hidden = false;
       el("user-email").textContent = user.email;
-      state.goals = await store.loadGoals();
-      await loadMonth(store.currentMonthId());
-      renderDefaultGoalBanner();
+      renderCurrent(); // od razu pokaż widok (pusty stan), zanim dojdą dane
+      // Budżet ładujemy jako pierwszy i niezależnie — błąd celów nie może go blokować.
+      try {
+        await loadMonth(store.currentMonthId());
+      } catch (e) {
+        console.error("Nie udało się wczytać miesiąca:", e);
+        renderCurrent();
+      }
+      try {
+        state.goals = await store.loadGoals();
+        renderDefaultGoalBanner();
+        if (state.view === "goals") renderCurrent();
+      } catch (e) {
+        console.error("Nie udało się wczytać celów:", e);
+      }
     },
     () => {
       el("app").hidden = true;
