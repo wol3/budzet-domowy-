@@ -1,0 +1,17 @@
+# System / edytory
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Zależności / logi (gdyby kiedyś doszły)
+node_modules/
+*.log
+
+# Pliki lokalne z danymi/sekretami
+*.env
+.env*
+secrets.*
+
+# Arkusz źródłowy — nie publikujemy na GitHub Pages
+koszty.xlsx

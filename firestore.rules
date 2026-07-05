@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Aplikacja jednoosobowa: dostęp tylko dla zalogowanego użytkownika.
+    // Wklej te reguły w konsoli Firebase → Firestore Database → Reguły → Opublikuj.
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

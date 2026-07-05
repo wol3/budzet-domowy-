@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Budżet Domowy</title>
+  <meta name="theme-color" content="#f5f5f7" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+</head>
+<body>
+
+  <!-- Ekran logowania -->
+  <div id="login-screen" class="login-screen">
+    <form id="login-form" class="login-card">
+      <div class="login-logo">💰</div>
+      <h1>Budżet Domowy</h1>
+      <p class="login-sub">Zaloguj się, aby zarządzać budżetem</p>
+      <input id="login-email" type="email" placeholder="E-mail" autocomplete="username" required />
+      <input id="login-pass" type="password" placeholder="Hasło" autocomplete="current-password" required />
+      <button type="submit" class="btn-primary">Zaloguj się</button>
+      <p id="login-error" class="login-error"></p>
+    </form>
+  </div>
+
+  <!-- Aplikacja -->
+  <div id="app" hidden>
+    <header class="topbar">
+      <div class="brand">💰 <span>Budżet Domowy</span></div>
+
+      <nav class="nav">
+        <button class="nav-btn active" data-view="budget">Ten miesiąc</button>
+        <button class="nav-btn" data-view="charts">Wykresy</button>
+        <button class="nav-btn" data-view="goals">Cele</button>
+      </nav>
+
+      <div class="topbar-right">
+        <span id="save-status" class="save-status"></span>
+        <span id="user-email" class="user-email"></span>
+        <button id="logout" class="btn-ghost">Wyloguj</button>
+      </div>
+    </header>
+
+    <div class="month-switch">
+      <button id="prev-month" class="btn-round" aria-label="Poprzedni miesiąc">‹</button>
+      <h2 id="month-label">—</h2>
+      <button id="next-month" class="btn-round" aria-label="Następny miesiąc">›</button>
+      <div id="month-missing" class="month-missing" hidden>
+        <span>Brak danych dla tego miesiąca.</span>
+        <button id="create-month" class="btn-mini">Utwórz na podstawie poprzedniego</button>
+      </div>
+    </div>
+
+    <main class="container">
+      <div id="default-goal" class="default-goal" hidden></div>
+
+      <section id="view-budget" class="view active"></section>
+      <section id="view-charts" class="view"></section>
+      <section id="view-goals" class="view"></section>
+    </main>
+
+    <footer class="footer">Budżet Domowy · Mati &amp; Kinia</footer>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
