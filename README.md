@@ -52,9 +52,9 @@ python3 -m http.server 8000
 ## Deploy na GitHub Pages
 
 1. `git push` na branch `main`.
-2. W repo: **Settings → Pages → Source: GitHub Actions**.
-3. Poczekaj na zielony workflow w zakładce **Actions**.
-4. Adres apki: `https://<twoj-login>.github.io/<nazwa-repo>/`
+2. W repo: **Settings → Pages → Source: „Deploy from a branch" → Branch: `main` / `/ (root)` → Save**.
+3. Poczekaj ~1 min, odśwież stronę Settings → Pages — pojawi się link do apki.
+4. Adres apki: `https://wol3.github.io/budzet-domowy-/`
 
 > Repo z GitHub Pages na darmowym planie musi być **publiczne**.
 > Ścieżki w kodzie są **względne**, więc apka działa również w podkatalogu (`/nazwa-repo/`).
