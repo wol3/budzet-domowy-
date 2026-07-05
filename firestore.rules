@@ -1,10 +1,16 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Aplikacja jednoosobowa: dostęp tylko dla zalogowanego użytkownika.
+    // Aplikacja jednoosobowa. Ponieważ logowanie idzie przez Google (a Google
+    // ma każdy), ograniczamy dostęp do JEDNEGO konta — Twojego adresu e-mail.
+    // Jeśli zalogujesz się innym mailem, zmień poniższy adres i opublikuj ponownie.
     // Wklej te reguły w konsoli Firebase → Firestore Database → Reguły → Opublikuj.
+    function isOwner() {
+      return request.auth != null
+        && request.auth.token.email == 'wolowiczmateusz1@gmail.com';
+    }
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isOwner();
     }
   }
 }

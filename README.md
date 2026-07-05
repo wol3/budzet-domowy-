@@ -36,9 +36,9 @@ Projekt: **budzet-domowy-42855**. Config jest już wpisany w `js/config.js`.
 W [konsoli Firebase](https://console.firebase.google.com) upewnij się, że masz:
 
 1. **Firestore Database** — Build → Firestore Database → *Create database* (tryb produkcyjny, region `eur3`).
-2. **Authentication → Sign-in method → Email/Password** — włączone.
-3. **Jedno konto** — Authentication → Users → *Add user* (Twój e-mail + hasło do logowania).
-4. **Reguły bezpieczeństwa** — skopiuj zawartość `firestore.rules` do Firestore Database → *Reguły* → **Opublikuj**.
+2. **Authentication → Sign-in method → Google** — włączone.
+3. **Reguły bezpieczeństwa** — skopiuj zawartość `firestore.rules` do Firestore Database → *Reguły* → **Opublikuj**. Reguły ograniczają dostęp do jednego adresu e-mail (`wolowiczmateusz1@gmail.com`) — jeśli logujesz się innym kontem Google, zmień ten adres w `firestore.rules`.
+4. **Authorized domains** — po wdrożeniu na GitHub Pages dodaj domenę `wol3.github.io` w Authentication → Settings → *Authorized domains* (inaczej logowanie Google zablokuje domenę).
 
 ## Uruchomienie lokalne
 

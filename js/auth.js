@@ -1,15 +1,17 @@
-// Logowanie (Firebase Auth, email/hasło, jedno konto).
+// Logowanie przez konto Google (Firebase Auth).
 import { auth } from "./firebase.js";
 import {
-  onAuthStateChanged, signInWithEmailAndPassword, signOut,
+  onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+const provider = new GoogleAuthProvider();
 
 export function watchAuth(onIn, onOut) {
   onAuthStateChanged(auth, (user) => (user ? onIn(user) : onOut()));
 }
 
-export async function login(email, password) {
-  await signInWithEmailAndPassword(auth, email, password);
+export async function loginWithGoogle() {
+  await signInWithPopup(auth, provider);
 }
 
 export async function logout() {
@@ -19,13 +21,12 @@ export async function logout() {
 // Zamiana kodów błędów Firebase na czytelne komunikaty PL.
 export function authErrorMessage(code) {
   const map = {
-    "auth/invalid-email": "Nieprawidłowy adres e-mail.",
-    "auth/invalid-credential": "Nieprawidłowy e-mail lub hasło.",
-    "auth/wrong-password": "Nieprawidłowe hasło.",
-    "auth/user-not-found": "Nie znaleziono takiego konta.",
-    "auth/too-many-requests": "Za dużo prób. Spróbuj za chwilę.",
-    "auth/operation-not-allowed": "Logowanie e-mail/hasło nie jest włączone w Firebase (Authentication → Sign-in method).",
+    "auth/popup-closed-by-user": "Okno logowania zostało zamknięte.",
+    "auth/cancelled-popup-request": "",
+    "auth/popup-blocked": "Przeglądarka zablokowała okno logowania — zezwól na wyskakujące okna.",
+    "auth/operation-not-allowed": "Logowanie Google nie jest włączone w Firebase (Authentication → Sign-in method).",
+    "auth/unauthorized-domain": "Ta domena nie jest autoryzowana w Firebase (Authentication → Settings → Authorized domains).",
     "auth/network-request-failed": "Brak połączenia z siecią.",
   };
-  return map[code] || "Nie udało się zalogować. Spróbuj ponownie.";
+  return map[code] ?? "Nie udało się zalogować. Spróbuj ponownie.";
 }

@@ -1,5 +1,5 @@
 // Orkiestracja: auth, nawigacja, przełączanie miesięcy, stan i akcje.
-import { watchAuth, login, logout, authErrorMessage } from "./auth.js";
+import { watchAuth, loginWithGoogle, logout, authErrorMessage } from "./auth.js";
 import * as store from "./store.js";
 import { renderBudget } from "./budget.js";
 import { renderCharts } from "./charts.js";
@@ -140,12 +140,10 @@ function wireHeader() {
 
 // --- Logowanie ------------------------------------------------------------
 function wireLogin() {
-  const form = el("login-form");
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
+  el("login-google").addEventListener("click", async () => {
     el("login-error").textContent = "";
     try {
-      await login(el("login-email").value.trim(), el("login-pass").value);
+      await loginWithGoogle();
     } catch (err) {
       el("login-error").textContent = authErrorMessage(err.code);
     }
