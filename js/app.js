@@ -39,20 +39,21 @@ function setSaveStatus(s) {
 
 // --- Akcje mutujące budżet ------------------------------------------------
 const actions = {
-  updateIncome(patch) { Object.assign(state.budget.income, patch); scheduleSave(); renderCurrent(); },
-  updateMortgage(patch) { Object.assign(state.budget.mortgage, patch); scheduleSave(); renderCurrent(); },
-  updateBuffer(v) { state.budget.buffer = v; scheduleSave(); renderCurrent(); },
-  addExpense(person) {
-    state.budget[person].push({ id: store.newId(), category: "", amount: 0, monthlyLimit: 0, paid: false });
-    scheduleSave(); renderCurrent();
-  },
-  // rerender=true gdy zmiana wpływa na sumy/paski (kwota, limit, status).
-  updateExpense(person, id, patch, rerender = false) {
+  // Edycje pól: zapisujemy stan i planujemy zapis, ale NIE przebudowujemy widoku
+  // — budget.js sam odświeża wartości pochodne (inaczej input gubił focus).
+  updateIncome(patch) { Object.assign(state.budget.income, patch); scheduleSave(); },
+  updateMortgage(patch) { Object.assign(state.budget.mortgage, patch); scheduleSave(); },
+  updateBuffer(v) { state.budget.buffer = v; scheduleSave(); },
+  updateExpense(person, id, patch) {
     const item = state.budget[person].find((e) => e.id === id);
     if (!item) return;
     Object.assign(item, patch);
     scheduleSave();
-    if (rerender) renderCurrent();
+  },
+  // Zmiany strukturalne (dodanie/usunięcie wiersza) wymagają pełnego renderu.
+  addExpense(person) {
+    state.budget[person].push({ id: store.newId(), category: "", amount: 0, monthlyLimit: 0, paid: false });
+    scheduleSave(); renderCurrent();
   },
   deleteExpense(person, id) {
     state.budget[person] = state.budget[person].filter((e) => e.id !== id);

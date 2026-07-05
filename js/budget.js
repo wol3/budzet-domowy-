@@ -1,190 +1,271 @@
 // Widok "Ten miesiąc": hero, dochody, hipoteka/800+, dwie kolumny wydatków,
 // podsumowanie na żywo. Renderuje do #view-budget.
+//
+// WAŻNE: pola input budujemy JEDEN raz. Przy pisaniu NIE przebudowujemy DOM
+// (to gubiło focus po jednym znaku) — wywołujemy tylko refresh(), które
+// aktualizuje wartości pochodne (sumy, %, paski, podsumowanie) w miejscu.
 import { money, percent, esc } from "./util.js";
 import { computeSummary, shareOf, limitStatus, mortgageMatiPart } from "./calc.js";
 
-// Pojedyncze pole liczbowo-edytowalne (dochody / hipoteka / bufor).
-function field(label, value, onInput) {
-  const wrap = document.createElement("label");
-  wrap.className = "field";
-  wrap.innerHTML = `<span>${esc(label)}</span>`;
+function moneyInput(value, placeholder = "") {
   const input = document.createElement("input");
   input.type = "number";
   input.inputMode = "decimal";
   input.step = "1";
-  input.value = value ?? 0;
-  input.addEventListener("input", () => onInput(parseFloat(input.value) || 0));
-  wrap.appendChild(input);
-  return wrap;
-}
-
-function expenseRow(item, personTotal, actions, person) {
-  const row = document.createElement("div");
-  row.className = "exp-row" + (item.paid ? " paid" : "");
-
-  const st = limitStatus(item.amount, item.monthlyLimit);
-  const share = shareOf(item.amount, personTotal);
-
-  row.innerHTML = `
-    <input class="exp-cat" type="text" value="${esc(item.category)}" placeholder="Kategoria" />
-    <input class="exp-amt" type="number" inputmode="decimal" value="${item.amount ?? 0}" />
-    <input class="exp-lim" type="number" inputmode="decimal" value="${item.monthlyLimit || ""}" placeholder="limit" />
-    <span class="exp-share">${percent(share)}</span>
-    <button class="exp-paid ${item.paid ? "on" : ""}" title="Status płatności">${item.paid ? "✓ Zapłacono" : "Nie zapłacono"}</button>
-    <button class="exp-del" title="Usuń">✕</button>
-  `;
-
-  if (st.level) {
-    const bar = document.createElement("div");
-    bar.className = `limit-bar ${st.level}`;
-    bar.innerHTML = `<i style="width:${Math.min(100, st.ratio * 100).toFixed(0)}%"></i>`;
-    row.appendChild(bar);
-  }
-
-  row.querySelector(".exp-cat").addEventListener("input", (e) =>
-    actions.updateExpense(person, item.id, { category: e.target.value }));
-  row.querySelector(".exp-amt").addEventListener("input", (e) =>
-    actions.updateExpense(person, item.id, { amount: parseFloat(e.target.value) || 0 }, true));
-  row.querySelector(".exp-lim").addEventListener("input", (e) =>
-    actions.updateExpense(person, item.id, { monthlyLimit: parseFloat(e.target.value) || 0 }, true));
-  row.querySelector(".exp-paid").addEventListener("click", () =>
-    actions.updateExpense(person, item.id, { paid: !item.paid }, true));
-  row.querySelector(".exp-del").addEventListener("click", () =>
-    actions.deleteExpense(person, item.id));
-
-  return row;
-}
-
-function expenseColumn(title, person, list, personTotal, isMati, matiPart, actions) {
-  const col = document.createElement("section");
-  col.className = "exp-col card";
-  col.innerHTML = `<header><h3>${esc(title)}</h3>
-    <span class="exp-total">${money(personTotal)}</span></header>`;
-
-  // Rata hipoteki jako pierwsza (nieedytowalna) pozycja wydatków Mati.
-  if (isMati && matiPart) {
-    const fixed = document.createElement("div");
-    fixed.className = "exp-row fixed";
-    fixed.innerHTML = `
-      <span class="exp-cat-fixed">🏠 Rata hipoteki (część Mati)</span>
-      <span class="exp-amt-fixed">${money(matiPart)}</span>
-      <span class="exp-share">${percent(shareOf(matiPart, personTotal))}</span>`;
-    col.appendChild(fixed);
-  }
-
-  const body = document.createElement("div");
-  body.className = "exp-body";
-  (list || []).forEach((item) =>
-    body.appendChild(expenseRow(item, personTotal, actions, person)));
-  col.appendChild(body);
-
-  const add = document.createElement("button");
-  add.className = "btn-add";
-  add.textContent = "+ Dodaj pozycję";
-  add.addEventListener("click", () => actions.addExpense(person));
-  col.appendChild(add);
-
-  return col;
-}
-
-function heroCard(label, value, cls = "") {
-  return `<div class="hero-card ${cls}"><span class="hero-label">${esc(label)}</span>
-    <strong class="hero-value">${value}</strong></div>`;
-}
-
-function sumRow(label, value, cls = "") {
-  const good = Number(value) >= 0;
-  return `<div class="sum-row ${cls}">
-    <span>${esc(label)}</span>
-    <b class="${cls === "signed" ? (good ? "pos" : "neg") : ""}">${money(value)}</b></div>`;
+  if (placeholder) input.placeholder = placeholder;
+  input.value = value ?? "";
+  return input;
 }
 
 export function renderBudget(container, budget, actions) {
-  const s = computeSummary(budget);
   container.innerHTML = "";
+  const rowRefs = { expensesMati: [], expensesKinia: [] };
 
-  // HERO
+  // refresh() jest definiowane niżej, ale handlery odwołują się do niego przez domknięcie.
+  let refresh = () => {};
+  const onEdit = (fn) => () => { fn(); refresh(); };
+
+  // ---------- HERO ----------
   const hero = document.createElement("div");
   hero.className = "hero";
-  hero.innerHTML =
-    heroCard("Dochód łączny", money(s.totalIncome)) +
-    heroCard("Koszty łączne", money(s.totalCosts)) +
-    heroCard("Zostaje", money(s.leftBeforeBuffer), s.leftBeforeBuffer >= 0 ? "good" : "bad") +
-    heroCard("Stopa oszczędności", percent(s.rateTotal), "accent");
+  const heroCard = (label, cls = "") => {
+    const card = document.createElement("div");
+    card.className = "hero-card " + cls;
+    card.innerHTML = `<span class="hero-label">${esc(label)}</span><strong class="hero-value"></strong>`;
+    hero.appendChild(card);
+    return card.querySelector(".hero-value");
+  };
+  const hIncome = heroCard("Dochód łączny");
+  const hCosts = heroCard("Koszty łączne");
+  const hLeft = heroCard("Zostaje");
+  const hRate = heroCard("Stopa oszczędności", "accent");
+  const hLeftCardEl = hLeft.closest(".hero-card");
   container.appendChild(hero);
 
-  // DOCHODY + HIPOTEKA
+  // ---------- DOCHODY + HIPOTEKA ----------
+  const numberField = (parent, label, value, onInput) => {
+    const wrap = document.createElement("label");
+    wrap.className = "field";
+    wrap.innerHTML = `<span>${esc(label)}</span>`;
+    const input = moneyInput(value);
+    input.addEventListener("input", onEdit(() => onInput(parseFloat(input.value) || 0)));
+    wrap.appendChild(input);
+    parent.appendChild(wrap);
+  };
+
   const top = document.createElement("div");
   top.className = "grid-2";
 
   const inc = document.createElement("section");
   inc.className = "card";
   inc.innerHTML = "<h3>Dochody</h3>";
-  inc.append(
-    field("Pensja Mati", budget.income.matiSalary, (v) => actions.updateIncome({ matiSalary: v })),
-    field("Pensja Kinia", budget.income.kiniaSalary, (v) => actions.updateIncome({ kiniaSalary: v })),
-    field("Świadczenie 800+", budget.income.benefit800, (v) => actions.updateIncome({ benefit800: v })),
-  );
-  const incSum = document.createElement("div");
-  incSum.className = "card-foot";
-  incSum.innerHTML = `<span>Suma dochodów</span><b>${money(s.totalIncome)}</b>`;
-  inc.appendChild(incSum);
+  numberField(inc, "Pensja Mati", budget.income.matiSalary, (v) => actions.updateIncome({ matiSalary: v }));
+  numberField(inc, "Pensja Kinia", budget.income.kiniaSalary, (v) => actions.updateIncome({ kiniaSalary: v }));
+  numberField(inc, "Świadczenie 800+", budget.income.benefit800, (v) => actions.updateIncome({ benefit800: v }));
+  const incFoot = document.createElement("div");
+  incFoot.className = "card-foot";
+  incFoot.innerHTML = `<span>Suma dochodów</span><b></b>`;
+  inc.appendChild(incFoot);
 
   const mort = document.createElement("section");
   mort.className = "card";
   mort.innerHTML = "<h3>Hipoteka &amp; 800+</h3>";
-  mort.append(
-    field("Rata hipoteczna (łączna)", budget.mortgage.totalInstallment, (v) => actions.updateMortgage({ totalInstallment: v })),
-    field("Pokrycie z 800+", budget.mortgage.coveredBy800, (v) => actions.updateMortgage({ coveredBy800: v })),
-  );
+  numberField(mort, "Rata hipoteczna (łączna)", budget.mortgage.totalInstallment, (v) => actions.updateMortgage({ totalInstallment: v }));
+  numberField(mort, "Pokrycie z 800+", budget.mortgage.coveredBy800, (v) => actions.updateMortgage({ coveredBy800: v }));
   const mortFoot = document.createElement("div");
   mortFoot.className = "card-foot";
-  mortFoot.innerHTML = `<span>Część Mati (do budżetu)</span><b>${money(mortgageMatiPart(budget.mortgage))}</b>`;
+  mortFoot.innerHTML = `<span>Część Mati (do budżetu)</span><b></b>`;
   mort.appendChild(mortFoot);
 
   top.append(inc, mort);
   container.appendChild(top);
 
-  // WYDATKI — dwie kolumny
+  // ---------- WYDATKI ----------
+  function buildRow(person, item) {
+    const row = document.createElement("div");
+    row.className = "exp-row" + (item.paid ? " paid" : "");
+
+    const cat = document.createElement("input");
+    cat.type = "text"; cat.className = "exp-cat"; cat.placeholder = "Kategoria";
+    cat.value = item.category || "";
+    // Kategoria nie wpływa na liczby → bez refresh (i bez utraty focusu).
+    cat.addEventListener("input", () => actions.updateExpense(person, item.id, { category: cat.value }));
+
+    const amt = moneyInput(item.amount, "0"); amt.className = "exp-amt";
+    amt.addEventListener("input", onEdit(() =>
+      actions.updateExpense(person, item.id, { amount: parseFloat(amt.value) || 0 })));
+
+    const lim = moneyInput(item.monthlyLimit || "", "limit"); lim.className = "exp-lim";
+    lim.addEventListener("input", onEdit(() =>
+      actions.updateExpense(person, item.id, { monthlyLimit: parseFloat(lim.value) || 0 })));
+
+    const share = document.createElement("span"); share.className = "exp-share";
+
+    const paid = document.createElement("button");
+    paid.className = "exp-paid" + (item.paid ? " on" : "");
+    paid.title = "Status płatności";
+    paid.textContent = item.paid ? "✓ Zapłacono" : "Nie zapłacono";
+    paid.addEventListener("click", () => {
+      const next = !item.paid;
+      actions.updateExpense(person, item.id, { paid: next });
+      row.classList.toggle("paid", next);
+      paid.classList.toggle("on", next);
+      paid.textContent = next ? "✓ Zapłacono" : "Nie zapłacono";
+    });
+
+    const del = document.createElement("button");
+    del.className = "exp-del"; del.title = "Usuń"; del.textContent = "✕";
+    del.addEventListener("click", () => actions.deleteExpense(person, item.id));
+
+    const bar = document.createElement("div");
+    bar.className = "limit-bar"; bar.innerHTML = "<i></i>"; bar.hidden = true;
+
+    row.append(cat, amt, lim, share, paid, del, bar);
+    return { row, item, share, bar, barI: bar.querySelector("i") };
+  }
+
+  function buildColumn(title, person, list, isMati) {
+    const col = document.createElement("section");
+    col.className = "exp-col card";
+    const head = document.createElement("header");
+    head.innerHTML = `<h3>${esc(title)}</h3><span class="exp-total"></span>`;
+    col.appendChild(head);
+    const totalEl = head.querySelector(".exp-total");
+
+    let fixed = null, fixedAmt = null, fixedShare = null;
+    if (isMati) {
+      fixed = document.createElement("div");
+      fixed.className = "exp-row fixed";
+      fixed.innerHTML = `<span class="exp-cat-fixed">🏠 Rata hipoteki (część Mati)</span>
+        <span class="exp-amt-fixed"></span><span class="exp-share"></span>`;
+      fixedAmt = fixed.querySelector(".exp-amt-fixed");
+      fixedShare = fixed.querySelector(".exp-share");
+      col.appendChild(fixed);
+    }
+
+    const body = document.createElement("div");
+    body.className = "exp-body";
+    (list || []).forEach((item) => {
+      const r = buildRow(person, item);
+      rowRefs[person].push(r);
+      body.appendChild(r.row);
+    });
+    col.appendChild(body);
+
+    const add = document.createElement("button");
+    add.className = "btn-add"; add.textContent = "+ Dodaj pozycję";
+    add.addEventListener("click", () => actions.addExpense(person));
+    col.appendChild(add);
+
+    return { col, totalEl, fixed, fixedAmt, fixedShare };
+  }
+
   const cols = document.createElement("div");
   cols.className = "grid-2 expenses";
-  cols.append(
-    expenseColumn("Wydatki Mati", "expensesMati", budget.expensesMati, s.totalMati, true, s.matiPart, actions),
-    expenseColumn("Wydatki Kinia", "expensesKinia", budget.expensesKinia, s.totalKinia, false, 0, actions),
-  );
+  const colMati = buildColumn("Wydatki Mati", "expensesMati", budget.expensesMati, true);
+  const colKinia = buildColumn("Wydatki Kinia", "expensesKinia", budget.expensesKinia, false);
+  cols.append(colMati.col, colKinia.col);
   container.appendChild(cols);
 
-  // PODSUMOWANIE
+  // ---------- PODSUMOWANIE ----------
   const summary = document.createElement("section");
   summary.className = "card summary";
   summary.innerHTML = "<h3>Podsumowanie budżetu</h3>";
   const grid = document.createElement("div");
   grid.className = "sum-grid";
-  grid.innerHTML =
-    sumRow("Suma wydatków Mati", s.totalMati) +
-    sumRow("Suma wydatków Kinia", s.totalKinia) +
-    sumRow("Zostaje Mati", s.leftMati, "signed") +
-    sumRow("Zostaje Kinia", s.leftKinia, "signed") +
-    sumRow("Suma kosztów łącznie", s.totalCosts) +
-    sumRow("Zostaje (przed buforem)", s.leftBeforeBuffer, "signed");
+  const sumRow = (label, cls = "") => {
+    const div = document.createElement("div");
+    div.className = "sum-row " + cls;
+    div.innerHTML = `<span>${esc(label)}</span><b></b>`;
+    grid.appendChild(div);
+    return div.querySelector("b");
+  };
+  const sMatiExp = sumRow("Suma wydatków Mati");
+  const sKiniaExp = sumRow("Suma wydatków Kinia");
+  const sLeftMati = sumRow("Zostaje Mati", "signed");
+  const sLeftKinia = sumRow("Zostaje Kinia", "signed");
+  const sCosts = sumRow("Suma kosztów łącznie");
+  const sLeftBuf = sumRow("Zostaje (przed buforem)", "signed");
   summary.appendChild(grid);
 
   const bufWrap = document.createElement("div");
   bufWrap.className = "buffer-row";
-  bufWrap.append(field("Bufor na sytuacje losowe", budget.buffer, (v) => actions.updateBuffer(v)));
+  numberField(bufWrap, "Bufor na sytuacje losowe", budget.buffer, (v) => actions.updateBuffer(v));
   summary.appendChild(bufWrap);
 
   const savings = document.createElement("div");
   savings.className = "savings-row";
   savings.innerHTML = `
-    <div class="save-big ${s.savings >= 0 ? "pos" : "neg"}">
-      <span>Oszczędności miesięczne</span><strong>${money(s.savings)}</strong></div>
+    <div class="save-big"><span>Oszczędności miesięczne</span><strong></strong></div>
     <div class="rates">
-      <span>Stopa Mati <b>${percent(s.rateMati)}</b></span>
-      <span>Stopa Kinia <b>${percent(s.rateKinia)}</b></span>
-      <span>Stopa łączna <b>${percent(s.rateTotal)}</b></span>
+      <span>Stopa Mati <b class="r-mati"></b></span>
+      <span>Stopa Kinia <b class="r-kinia"></b></span>
+      <span>Stopa łączna <b class="r-total"></b></span>
     </div>`;
+  const saveBig = savings.querySelector(".save-big");
+  const saveVal = savings.querySelector(".save-big strong");
+  const rMati = savings.querySelector(".r-mati");
+  const rKinia = savings.querySelector(".r-kinia");
+  const rTotal = savings.querySelector(".r-total");
   summary.appendChild(savings);
-
   container.appendChild(summary);
+
+  // ---------- REFRESH (tylko wartości pochodne, bez ruszania inputów) ----------
+  const signed = (el, v) => {
+    el.textContent = money(v);
+    el.classList.toggle("pos", v >= 0);
+    el.classList.toggle("neg", v < 0);
+  };
+  const updateRow = (r, personTotal) => {
+    r.share.textContent = percent(shareOf(r.item.amount, personTotal));
+    const st = limitStatus(r.item.amount, r.item.monthlyLimit);
+    if (st.level) {
+      r.bar.hidden = false;
+      r.bar.className = "limit-bar " + st.level;
+      r.barI.style.width = Math.min(100, st.ratio * 100).toFixed(0) + "%";
+    } else {
+      r.bar.hidden = true;
+    }
+  };
+
+  refresh = () => {
+    const s = computeSummary(budget);
+
+    hIncome.textContent = money(s.totalIncome);
+    hCosts.textContent = money(s.totalCosts);
+    hLeft.textContent = money(s.leftBeforeBuffer);
+    hLeftCardEl.classList.toggle("good", s.leftBeforeBuffer >= 0);
+    hLeftCardEl.classList.toggle("bad", s.leftBeforeBuffer < 0);
+    hRate.textContent = percent(s.rateTotal);
+
+    incFoot.querySelector("b").textContent = money(s.totalIncome);
+    mortFoot.querySelector("b").textContent = money(mortgageMatiPart(budget.mortgage));
+
+    colMati.totalEl.textContent = money(s.totalMati);
+    colKinia.totalEl.textContent = money(s.totalKinia);
+    if (colMati.fixed) {
+      colMati.fixed.hidden = !s.matiPart;
+      colMati.fixedAmt.textContent = money(s.matiPart);
+      colMati.fixedShare.textContent = percent(shareOf(s.matiPart, s.totalMati));
+    }
+
+    rowRefs.expensesMati.forEach((r) => updateRow(r, s.totalMati));
+    rowRefs.expensesKinia.forEach((r) => updateRow(r, s.totalKinia));
+
+    sMatiExp.textContent = money(s.totalMati);
+    sKiniaExp.textContent = money(s.totalKinia);
+    signed(sLeftMati, s.leftMati);
+    signed(sLeftKinia, s.leftKinia);
+    sCosts.textContent = money(s.totalCosts);
+    signed(sLeftBuf, s.leftBeforeBuffer);
+
+    saveVal.textContent = money(s.savings);
+    saveBig.classList.toggle("pos", s.savings >= 0);
+    saveBig.classList.toggle("neg", s.savings < 0);
+    rMati.textContent = percent(s.rateMati);
+    rKinia.textContent = percent(s.rateKinia);
+    rTotal.textContent = percent(s.rateTotal);
+  };
+
+  refresh();
 }
