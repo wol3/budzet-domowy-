@@ -91,7 +91,7 @@ export function renderBudget(container, budget, actions) {
     // Kategoria nie wpływa na liczby → bez refresh (i bez utraty focusu).
     cat.addEventListener("input", () => actions.updateExpense(person, item.id, { category: cat.value }));
 
-    const amt = moneyInput(item.amount, "0"); amt.className = "exp-amt";
+    const amt = moneyInput(item.amount, "kwota"); amt.className = "exp-amt";
     amt.addEventListener("input", onEdit(() =>
       actions.updateExpense(person, item.id, { amount: parseFloat(amt.value) || 0 })));
 
@@ -120,7 +120,16 @@ export function renderBudget(container, budget, actions) {
     const bar = document.createElement("div");
     bar.className = "limit-bar"; bar.innerHTML = "<i></i>"; bar.hidden = true;
 
-    row.append(cat, amt, lim, share, paid, del, bar);
+    // Linia 1: opis + usuwanie. Linia 2: kwota/limit/udział/status.
+    const line1 = document.createElement("div");
+    line1.className = "exp-line1";
+    line1.append(cat, del);
+
+    const controls = document.createElement("div");
+    controls.className = "exp-controls";
+    controls.append(amt, lim, share, paid);
+
+    row.append(line1, controls, bar);
     return { row, item, share, bar, barI: bar.querySelector("i") };
   }
 

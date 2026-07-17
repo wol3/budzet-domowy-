@@ -170,39 +170,51 @@ input { font-family: inherit; }
   margin-bottom: 14px;
 }
 .exp-total { font-size: 20px; font-weight: 600; }
-.exp-body { display: flex; flex-direction: column; gap: 8px; }
+.exp-body { display: flex; flex-direction: column; gap: 10px; }
+
+/* Wiersz wydatku: linia 1 = opis (pełna szerokość), linia 2 = kwota/limit/status. */
 .exp-row {
-  display: grid; grid-template-columns: 1fr 92px 78px 52px auto auto;
-  gap: 8px; align-items: center; padding: 8px; border-radius: 12px;
-  background: #fbfbfd; border: 1px solid var(--line); position: relative;
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 12px; border-radius: 12px;
+  background: #fbfbfd; border: 1px solid var(--line);
 }
 .exp-row.paid { background: #f2fbf4; border-color: #cdeccf; }
-.exp-row.fixed {
-  grid-template-columns: 1fr auto 52px; background: #fff8ec; border-color: #f5e2bf;
-}
+
 .exp-row input {
-  border: none; background: transparent; padding: 6px 8px; font-size: 14px;
-  border-radius: 8px; min-width: 0;
+  border: 1px solid var(--line); background: #fff; padding: 9px 12px; font-size: 14px;
+  border-radius: 9px; min-width: 0;
 }
-.exp-row input:focus { outline: none; background: #fff; box-shadow: 0 0 0 2px var(--accent); }
-.exp-cat { font-weight: 500; }
-.exp-amt, .exp-lim { text-align: right; }
-.exp-cat-fixed { font-weight: 500; font-size: 14px; }
-.exp-amt-fixed { font-weight: 600; text-align: right; }
-.exp-share { font-size: 12px; color: var(--text-2); text-align: right; }
+.exp-row input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,113,227,.12); }
+.exp-line1 { display: flex; align-items: center; gap: 8px; }
+.exp-cat { flex: 1; font-weight: 500; }
+
+.exp-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.exp-amt { width: 120px; text-align: right; }
+.exp-lim { width: 96px; text-align: right; }
+.exp-share { font-size: 12px; color: var(--text-2); margin-left: auto; white-space: nowrap; }
 .exp-paid {
-  border: none; background: #e5e5ea; color: var(--text-2); padding: 5px 9px;
-  border-radius: 8px; font-size: 11px; font-weight: 500; white-space: nowrap;
+  border: none; background: #e5e5ea; color: var(--text-2); padding: 8px 12px;
+  border-radius: 8px; font-size: 12px; font-weight: 500; white-space: nowrap;
 }
 .exp-paid.on { background: var(--accent-2); color: #fff; }
 .exp-del {
   border: none; background: transparent; color: var(--text-2); font-size: 15px;
-  width: 26px; height: 26px; border-radius: 7px; transition: all .2s;
+  width: 32px; height: 32px; border-radius: 7px; flex: none; transition: all .2s;
 }
 .exp-del:hover { background: #ffe5e3; color: var(--danger); }
+
+/* Box "Rata hipoteki" — osobny wiersz z wyraźnym odstępem od listy wydatków. */
+.exp-row.fixed {
+  flex-direction: row; align-items: center; gap: 10px;
+  background: #fff8ec; border-color: #f5e2bf; margin-bottom: 14px;
+}
+.exp-cat-fixed { flex: 1; font-weight: 500; font-size: 14px; }
+.exp-amt-fixed { font-weight: 600; }
+.exp-row.fixed .exp-share { margin-left: 0; }
+
 .limit-bar {
-  grid-column: 1 / -1; height: 5px; border-radius: 3px; background: #e5e5ea;
-  overflow: hidden; margin-top: 2px;
+  height: 5px; border-radius: 3px; background: #e5e5ea;
+  overflow: hidden;
 }
 .limit-bar i { display: block; height: 100%; border-radius: 3px; transition: width .3s; }
 .limit-bar.green i { background: var(--accent-2); }
@@ -282,7 +294,7 @@ canvas { max-height: 340px; }
 @media (max-width: 520px) {
   .hero { grid-template-columns: 1fr; }
   .month-switch h2 { font-size: 24px; min-width: 0; }
-  .exp-row { grid-template-columns: 1fr 78px auto; }
-  .exp-lim, .exp-share { display: none; }
+  .exp-amt { width: 100px; }
+  .exp-lim { width: 84px; }
   .container { padding: 12px 16px 50px; }
 }
