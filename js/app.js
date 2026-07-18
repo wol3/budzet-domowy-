@@ -18,6 +18,7 @@ const state = {
   yearId: new Date().getFullYear(),
   year: null,
   knownYears: [],
+  allYears: [],
   view: "budget",
   saveTimer: null,
   yearTimer: null,
@@ -111,6 +112,7 @@ const yearActions = {
     state.year = JSON.parse(JSON.stringify(seed));
     await store.saveYear(state.yearId, state.year);
     state.knownYears = await store.listYears();
+    state.allYears = await store.loadAllYears();
     setSaveStatus("saved");
     renderCurrent();
   },
@@ -210,12 +212,14 @@ function renderYearView() {
     if (fromPrev) fromPrev.addEventListener("click", async () => {
       state.year = await store.createYearFrom(prev, state.yearId);
       state.knownYears = await store.listYears();
+    state.allYears = await store.loadAllYears();
       renderCurrent();
     });
     el("y-empty").addEventListener("click", async () => {
       state.year = store.emptyYear(state.yearId);
       await store.saveYear(state.yearId, state.year);
       state.knownYears = await store.listYears();
+    state.allYears = await store.loadAllYears();
       renderCurrent();
     });
     return;
@@ -223,7 +227,7 @@ function renderYearView() {
 
   const body = document.createElement("div");
   host.appendChild(body);
-  renderYear(body, state.year, yearActions);
+  renderYear(body, state.year, yearActions, state.allYears, state.yearId);
 }
 
 function switchView(view) {
@@ -312,6 +316,7 @@ function boot() {
       try {
         state.year = await store.loadYear(state.yearId);
         state.knownYears = await store.listYears();
+    state.allYears = await store.loadAllYears();
         if (state.view === "year") renderCurrent();
       } catch (e) {
         console.error("Nie udało się wczytać planu rocznego:", e);

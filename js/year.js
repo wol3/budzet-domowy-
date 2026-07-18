@@ -33,11 +33,68 @@ export function computeYear(year) {
   return { start, rows, last, planEnd, plannedTotal, oneOffTotal, oneOffs };
 }
 
-let chart = null;
+// --- Rozpoznawanie wydatków, które wracają co roku -------------------------
+// "Wakacje", "Ubezpieczenie samochodu" czy "Wymiana opon" to formalnie pozycje
+// jednorazowe, ale w praktyce stały koszt roczny. Grupujemy je po znormalizowanej
+// nazwie, żeby oddzielić je od faktycznie jednorazowych decyzji.
+const STOPWORDS = new Set(["od", "do", "w", "z", "za", "na", "i", "dla", "the"]);
+// Słowa zbyt ogólne, by same w sobie identyfikowały wydatek — dla nich bierzemy
+// też drugie słowo (inaczej "ubezpieczenie samochodu" = "ubezpieczenie mieszkania").
+const GENERIC = new Set(["ubezpieczenie", "serwis", "rata", "oplata", "podatek",
+  "wyjazd", "remont", "naprawa", "zakup", "wymiana", "przeglad"]);
 
-export function renderYear(container, year, actions) {
+const stripName = (s) => String(s || "").toLowerCase()
+  .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  .replace(/ł/g, "l")
+  .replace(/[^a-z0-9 ]/g, " ")
+  .replace(/\s+/g, " ").trim();
+
+export function recurKey(name) {
+  const words = stripName(name).split(" ").filter((w) => w && !STOPWORDS.has(w));
+  if (!words.length) return "";
+  const first = words[0].slice(0, 9);
+  if (!GENERIC.has(words[0])) return first;
+  const second = (words[1] || "").slice(0, 5);
+  return second ? `${first}|${second}` : first;
+}
+
+// Zwraca zbiór kluczy uznanych za powtarzalne + podział sum per rok.
+export function analyseOneOffs(allYears) {
+  const years = (allYears || []).filter((y) => (y.oneOffs || []).length);
+  if (!years.length) return { recurring: new Set(), perYear: [] };
+
+  const seen = new Map(); // klucz -> zbiór lat
+  years.forEach((y) => (y.oneOffs || []).forEach((o) => {
+    const k = recurKey(o.name);
+    if (!k) return;
+    if (!seen.has(k)) seen.set(k, new Set());
+    seen.get(k).add(y.id);
+  }));
+
+  // Próg skaluje się z liczbą lat: przy 4 latach = 3, przy 2 latach = 2.
+  const threshold = Math.max(2, Math.ceil(years.length * 0.6));
+  const recurring = new Set([...seen].filter(([, ys]) => ys.size >= threshold).map(([k]) => k));
+
+  const perYear = years.map((y) => {
+    let rec = 0, once = 0;
+    (y.oneOffs || []).forEach((o) => {
+      const amt = +o.amount || 0;
+      if (recurring.has(recurKey(o.name))) rec += amt; else once += amt;
+    });
+    return { id: y.id, rec, once, total: rec + once };
+  });
+
+  return { recurring, perYear };
+}
+
+const charts = {};
+const destroyCharts = () => {
+  Object.keys(charts).forEach((k) => { charts[k]?.destroy(); delete charts[k]; });
+};
+
+export function renderYear(container, year, actions, allYears = [], yearId = null) {
   container.innerHTML = "";
-  if (chart) { chart.destroy(); chart = null; }
+  destroyCharts();
 
   let refresh = () => {};
   const refs = { rows: [], oneOffs: [] };
@@ -193,6 +250,33 @@ export function renderYear(container, year, actions) {
   oneCard.appendChild(addOne);
   container.appendChild(oneCard);
 
+  // ---------- B. Ranking pozycji w tym roku ----------
+  const rankCard = document.createElement("section");
+  rankCard.className = "card";
+  rankCard.appendChild(eyebrow("Co dominuje w tym roku"));
+  rankCard.insertAdjacentHTML("beforeend", `<h3>Największe pozycje</h3>`);
+  const rankList = document.createElement("div");
+  rankList.className = "top-list";
+  rankCard.appendChild(rankList);
+  container.appendChild(rankCard);
+
+  // ---------- A. Rok do roku: powtarzalne vs jednorazowe ----------
+  const yoyCard = document.createElement("section");
+  yoyCard.className = "card";
+  yoyCard.appendChild(eyebrow("Porównanie lat"));
+  yoyCard.insertAdjacentHTML("beforeend",
+    `<h3>Jednorazowe rok do roku</h3>
+     <p class="card-hint">Część „jednorazowych” wraca co roku (wakacje, ubezpieczenia,
+     opony) — to de facto stały koszt. Ciemniejszy słupek to właśnie one.</p>`);
+  const yoyWrap = document.createElement("div");
+  yoyWrap.className = "chart-wrap";
+  yoyWrap.innerHTML = `<canvas id="c-yoy"></canvas>`;
+  yoyCard.appendChild(yoyWrap);
+  const yoyNote = document.createElement("p");
+  yoyNote.className = "card-note";
+  yoyCard.appendChild(yoyNote);
+  container.appendChild(yoyCard);
+
   // ---------- REFRESH ----------
   refresh = () => {
     const y = computeYear(year);
@@ -230,18 +314,109 @@ export function renderYear(container, year, actions) {
     });
 
     drawChart(y);
+    drawRanking(y);
+    drawYoY(y);
   };
+
+  // B. Ranking — paski proporcji, od razu widać pozycję dominującą.
+  function drawRanking(y) {
+    const items = [...(y.oneOffs || [])]
+      .filter((o) => +o.amount > 0)
+      .sort((a, b) => (+b.amount) - (+a.amount));
+    rankList.innerHTML = "";
+    if (!items.length) {
+      rankList.innerHTML = `<p class="empty">Dodaj wydatki jednorazowe, żeby zobaczyć ranking.</p>`;
+      return;
+    }
+    const max = +items[0].amount;
+    items.slice(0, 8).forEach((o) => {
+      const row = document.createElement("div");
+      row.className = "top-row";
+      row.innerHTML = `
+        <span class="exp-ico">${categoryIcon(o.name)}</span>
+        <span class="top-name">${esc(o.name || "Bez nazwy")}</span>
+        <span class="top-val">${money(+o.amount)}</span>
+        <span class="top-pct">${y.oneOffTotal ? percent(+o.amount / y.oneOffTotal) : ""}</span>
+        <div class="top-bar"><i style="width:${(+o.amount / max * 100).toFixed(1)}%"></i></div>`;
+      rankList.appendChild(row);
+    });
+  }
+
+  // A. Rok do roku — słupki skumulowane: powtarzalne + naprawdę jednorazowe.
+  function drawYoY() {
+    const ctx = document.getElementById("c-yoy");
+    if (!ctx || typeof Chart === "undefined") return;
+    charts.yoy?.destroy();
+
+    // Bieżący rok bierzemy ze stanu na żywo, pozostałe z bazy.
+    const cur = yearId ?? new Date().getFullYear();
+    const merged = [
+      ...(allYears || []).filter((y) => y.id !== cur),
+      { id: cur, oneOffs: year.oneOffs || [] },
+    ].sort((a, b) => a.id - b.id);
+
+    const { perYear } = analyseOneOffs(merged);
+    if (perYear.length < 2) {
+      yoyWrap.hidden = true;
+      yoyNote.textContent = "Porównanie pojawi się, gdy wczytasz co najmniej 2 lata.";
+      return;
+    }
+    yoyWrap.hidden = false;
+
+    const avgRec = perYear.reduce((s, p) => s + p.rec, 0) / perYear.length;
+    const first = perYear[0], last = perYear[perYear.length - 1];
+    const growth = first.total > 0 ? (last.total - first.total) / first.total : 0;
+    yoyNote.textContent =
+      `Powtarzalne to średnio ${money(avgRec)} rocznie. ` +
+      `Całość ${growth >= 0 ? "wzrosła" : "spadła"} o ${percent(Math.abs(growth))} ` +
+      `między ${first.id} a ${last.id}.`;
+
+    charts.yoy = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: perYear.map((p) => p.id),
+        datasets: [
+          { label: "Wraca co roku", data: perYear.map((p) => p.rec),
+            backgroundColor: "#0071e3", borderRadius: 6, stack: "a" },
+          { label: "Naprawdę jednorazowe", data: perYear.map((p) => p.once),
+            backgroundColor: "#a5d0ff", borderRadius: 6, stack: "a" },
+        ],
+      },
+      options: {
+        maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: { position: "top", align: "end",
+            labels: { usePointStyle: true, pointStyle: "circle", boxWidth: 7, padding: 14,
+              font: { family: "-apple-system, 'SF Pro Text', Inter, sans-serif", size: 12 } } },
+          tooltip: { backgroundColor: "rgba(29,29,31,.92)", padding: 12, cornerRadius: 10,
+            usePointStyle: true,
+            callbacks: {
+              label: (c) => ` ${c.dataset.label}: ${money(c.parsed.y)}`,
+              footer: (items) => "Razem: " + money(items.reduce((s, i) => s + i.parsed.y, 0)),
+            } },
+        },
+        scales: {
+          x: { stacked: true, border: { display: false }, grid: { display: false },
+            ticks: { font: { size: 13 }, color: "#1d1d1f" } },
+          y: { stacked: true, border: { display: false }, grid: { color: "#f0f0f2" },
+            ticks: { font: { size: 11 }, color: "#8e8e93", maxTicksLimit: 6,
+              callback: (v) => (Math.abs(v) >= 1000 ? v / 1000 + "k" : v) + " zł" } },
+        },
+      },
+    });
+  }
 
   function drawChart(y) {
     const ctx = document.getElementById("c-year");
     if (!ctx || typeof Chart === "undefined") return;
-    if (chart) { chart.destroy(); chart = null; }
+    charts.year?.destroy();
 
     const grad = ctx.getContext("2d").createLinearGradient(0, 0, 0, 260);
     grad.addColorStop(0, "rgba(0,113,227,.22)");
     grad.addColorStop(1, "rgba(0,113,227,0)");
 
-    chart = new Chart(ctx, {
+    charts.year = new Chart(ctx, {
       type: "line",
       data: {
         labels: MONTHS.map((m) => m.slice(0, 3)),

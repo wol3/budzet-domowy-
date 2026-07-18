@@ -83,6 +83,14 @@ export async function saveYear(yearId, data) {
   await setDoc(doc(db, "years", String(yearId)), data);
 }
 
+// Wszystkie plany roczne naraz — do porównań rok do roku.
+export async function loadAllYears() {
+  const snap = await getDocs(collection(db, "years"));
+  return snap.docs
+    .map((d) => ({ id: Number(d.id), ...emptyYear(d.id), ...d.data() }))
+    .sort((a, b) => a.id - b.id);
+}
+
 // Które lata mają już plan — do podpowiedzi w przełączniku.
 export async function listYears() {
   const snap = await getDocs(collection(db, "years"));
