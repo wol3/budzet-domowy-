@@ -116,6 +116,17 @@ export async function createYearFrom(sourceId, targetId) {
   return base;
 }
 
+// --- Historia raty hipotecznej -------------------------------------------
+
+export async function loadMortgage() {
+  const snap = await getDoc(doc(db, "mortgage", "history"));
+  return snap.exists() ? { entries: [], ...snap.data() } : null;
+}
+
+export async function saveMortgage(data) {
+  await setDoc(doc(db, "mortgage", "history"), data);
+}
+
 // --- Cele ----------------------------------------------------------------
 
 export async function loadGoals() {

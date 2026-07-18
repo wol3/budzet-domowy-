@@ -6,6 +6,8 @@ import { renderCharts } from "./charts.js";
 import { renderGoals } from "./goals.js";
 import { renderYear } from "./year.js";
 import { renderDashboard } from "./dashboard.js";
+import { renderMortgage } from "./mortgage.js";
+import { MORTGAGE_SEED } from "./mortgage-seed.js";
 import { YEAR_SEEDS, SEED_YEARS } from "./year-seed.js";
 import { MONTH_SEED } from "./month-seed.js";
 import { el, money, percent, monthLabel, shiftMonth, esc } from "./util.js";
@@ -19,6 +21,7 @@ const state = {
   yearId: new Date().getFullYear(),
   year: null,
   knownYears: [],
+  mortgage: null,
   allYears: [],
   view: "dash",
   saveTimer: null,
@@ -37,6 +40,16 @@ function scheduleSave() {
       console.error(e);
       setSaveStatus("error");
     }
+  }, 600);
+}
+
+let mortgageTimer = null;
+function scheduleMortgageSave() {
+  clearTimeout(mortgageTimer);
+  setSaveStatus("saving");
+  mortgageTimer = setTimeout(async () => {
+    try { await store.saveMortgage(state.mortgage); setSaveStatus("saved"); }
+    catch (e) { console.error(e); setSaveStatus("error"); }
   }, 600);
 }
 
@@ -68,6 +81,39 @@ const actions = {
     state.budget[person] = state.budget[person].filter((e) => e.id !== id);
     scheduleSave(); renderCurrent();
   },
+  // --- Historia raty hipotecznej (rejestr niezależny od budżetu) ---
+  async importMortgage() {
+    state.mortgage = JSON.parse(JSON.stringify(MORTGAGE_SEED));
+    await store.saveMortgage(state.mortgage);
+    setSaveStatus("saved");
+    renderCurrent();
+  },
+  addMortgageEntry() {
+    if (!state.mortgage) state.mortgage = { entries: [] };
+    const last = state.mortgage.entries[state.mortgage.entries.length - 1];
+    state.mortgage.entries.push({
+      id: store.newId(),
+      date: new Date().toISOString().slice(0, 10),
+      amount: last ? +last.amount : 0,
+      note: "",
+    });
+    scheduleMortgageSave();
+    renderCurrent();
+  },
+  updateMortgageEntry(id, patch) {
+    const e = state.mortgage?.entries.find((x) => x.id === id);
+    if (!e) return;
+    Object.assign(e, patch);
+    scheduleMortgageSave();
+    // Data i kwota zmieniają wyliczenia i kolejność — odświeżamy widok.
+    if ("date" in patch || "amount" in patch) renderCurrent();
+  },
+  deleteMortgageEntry(id) {
+    state.mortgage.entries = state.mortgage.entries.filter((x) => x.id !== id);
+    scheduleMortgageSave();
+    renderCurrent();
+  },
+
   // --- Cele ---
   async addGoal(goal) { await store.addGoal(goal); await reloadGoals(); },
   async updateGoal(id, patch) { await store.updateGoal(id, patch); await reloadGoals(); },
@@ -157,6 +203,13 @@ function renderCurrent() {
     renderGoals(el("view-goals"), state.goals, actions);
   } else if (state.view === "year") {
     renderYearView();
+  } else if (state.view === "mortgage") {
+    renderMortgage(el("view-mortgage"), state.mortgage, {
+      importFromExcel: () => actions.importMortgage(),
+      addEntry: () => actions.addMortgageEntry(),
+      updateEntry: (id, p) => actions.updateMortgageEntry(id, p),
+      deleteEntry: (id) => actions.deleteMortgageEntry(id),
+    });
   }
 }
 
@@ -242,7 +295,7 @@ function switchView(view) {
   state.view = view;
   // Przełącznik miesięcy dotyczy tylko widoków miesięcznych.
   const ms = document.querySelector(".month-switch");
-  if (ms) ms.hidden = (view === "year" || view === "goals");
+  if (ms) ms.hidden = (view === "year" || view === "goals" || view === "mortgage");
   document.querySelectorAll(".nav-btn").forEach((b) =>
     b.classList.toggle("active", b.dataset.view === view));
   document.querySelectorAll(".view").forEach((v) =>
@@ -324,6 +377,7 @@ function boot() {
       try {
         state.year = await store.loadYear(state.yearId);
         state.knownYears = await store.listYears();
+        state.mortgage = await store.loadMortgage();
     state.allYears = await store.loadAllYears();
         if (state.view === "year") renderCurrent();
       } catch (e) {

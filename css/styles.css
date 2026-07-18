@@ -697,3 +697,54 @@ canvas { max-height: 340px; }
   .dash-stats { gap: 20px; }
   .chart-wrap.hero-chart { height: 160px; }
 }
+
+/* ===== Historia raty hipotecznej ===== */
+.mh-head, .mh-row {
+  display: grid;
+  grid-template-columns: 132px 132px 104px 104px 1fr 32px;
+  gap: 10px; align-items: center;
+}
+.mh-head {
+  padding: 0 8px 8px; font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .04em; color: var(--text-2);
+  border-bottom: 1px solid var(--line);
+}
+.mh-list { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }
+.mh-row {
+  padding: 6px 8px; border-radius: 10px; transition: background .15s;
+}
+.mh-row:hover { background: #fafafc; }
+/* Wpisy z notatką to zwykle nadpłaty — warto je wyróżnić. */
+.mh-row.highlight { background: #f4fbf6; }
+.mh-row.highlight:hover { background: #eef8f1; }
+
+.mh-date, .mh-note {
+  border: 1px solid transparent; background: transparent; border-radius: 8px;
+  padding: 7px 9px; font-size: 13px; font-family: inherit; color: var(--text);
+  min-width: 0; transition: background .15s, border-color .15s;
+}
+.mh-date:hover, .mh-note:hover { background: #f2f2f4; }
+.mh-date:focus, .mh-note:focus {
+  outline: none; background: #fff; border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0,113,227,.12);
+}
+.mh-note { width: 100%; }
+.mh-note::placeholder { color: #c0c0c6; }
+
+.mh-chg, .mh-start {
+  font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums;
+  text-align: right; white-space: nowrap;
+}
+.mh-chg.good, .mh-start.good { color: var(--accent-2); }
+.mh-chg.bad, .mh-start.bad { color: var(--danger); }
+.mh-chg.muted { color: #c0c0c6; font-weight: 400; }
+
+@media (max-width: 900px) {
+  .mh-head { display: none; }
+  .mh-row {
+    grid-template-columns: 1fr 1fr 32px;
+    gap: 8px; padding: 12px 10px;
+    border: 1px solid var(--line); border-radius: 12px;
+  }
+  .mh-note { grid-column: 1 / -1; }
+}
