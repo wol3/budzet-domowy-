@@ -5,7 +5,7 @@ import { renderBudget } from "./budget.js";
 import { renderCharts } from "./charts.js";
 import { renderGoals } from "./goals.js";
 import { renderYear } from "./year.js";
-import { YEAR_2026 } from "./year-seed.js";
+import { YEAR_SEEDS, SEED_YEARS } from "./year-seed.js";
 import { el, money, percent, monthLabel, shiftMonth, esc } from "./util.js";
 import { computeSummary } from "./calc.js";
 
@@ -105,7 +105,9 @@ const yearActions = {
   },
   // Jednorazowy import planu z arkusza (zakładka "Rok 2026").
   async importFromExcel() {
-    state.year = JSON.parse(JSON.stringify(YEAR_2026));
+    const seed = YEAR_SEEDS[state.yearId];
+    if (!seed) return;
+    state.year = JSON.parse(JSON.stringify(seed));
     await store.saveYear(state.yearId, state.year);
     state.knownYears = await store.listYears();
     setSaveStatus("saved");
@@ -180,20 +182,23 @@ function renderYearView() {
   if (!state.year) {
     const prev = state.yearId - 1;
     const hasPrev = state.knownYears.includes(String(prev));
-    const isSheetYear = state.yearId === 2026; // rok, dla którego mamy dane z arkusza
+    const isSheetYear = SEED_YEARS.includes(state.yearId); // lata dostępne w arkuszu
 
     const box = document.createElement("section");
     box.className = "card empty-year";
     box.innerHTML = `
       <div class="empty-ico">📅</div>
       <h3>Brak planu na ${state.yearId}</h3>
-      <p>${hasPrev
+      <p>${isSheetYear
+        ? `Ten rok jest w Twoim arkuszu — możesz wczytać go w całości
+           (start roku, cele miesięczne i wydatki jednorazowe).`
+        : hasPrev
         ? `Możesz przenieść cele miesięczne i wydatki jednorazowe z ${prev} —
            jako punkt startowy weźmiemy ostatni znany stan z tamtego roku.`
         : "Zacznij nowy plan: start roku, cele miesięczne i duże wydatki."}</p>
       <div class="empty-actions">
-        ${hasPrev ? `<button class="btn-primary" id="y-from-prev">Utwórz na podstawie ${prev}</button>` : ""}
-        ${isSheetYear ? `<button class="${hasPrev ? "btn-ghost" : "btn-primary"}" id="y-import">Wczytaj plan z arkusza</button>` : ""}
+        ${isSheetYear ? `<button class="btn-primary" id="y-import">Wczytaj plan z arkusza</button>` : ""}
+        ${hasPrev ? `<button class="${isSheetYear ? "btn-ghost" : "btn-primary"}" id="y-from-prev">Utwórz na podstawie ${prev}</button>` : ""}
         <button class="btn-ghost" id="y-empty">Zacznij od zera</button>
       </div>`;
     host.appendChild(box);
