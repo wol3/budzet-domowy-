@@ -170,51 +170,94 @@ input { font-family: inherit; }
   margin-bottom: 14px;
 }
 .exp-total { font-size: 20px; font-weight: 600; }
-.exp-body { display: flex; flex-direction: column; gap: 10px; }
+.exp-body { display: flex; flex-direction: column; gap: 6px; }
 
-/* Wiersz wydatku: linia 1 = opis (pełna szerokość), linia 2 = kwota/limit/status. */
+/* Nagłówek kolumny z awatarem osoby. */
+.col-head { display: flex; align-items: center; gap: 10px; }
+.avatar {
+  width: 30px; height: 30px; border-radius: 50%; flex: none;
+  display: grid; place-items: center; color: #fff;
+  font-size: 13px; font-weight: 600;
+}
+.avatar.m { background: linear-gradient(135deg, #0071e3, #4aa3ff); }
+.avatar.k { background: linear-gradient(135deg, #bf5af2, #ff6482); }
+.sec-ico { margin-right: 8px; }
+
+/* Wiersz wydatku: jedna linia na pełną szerokość + dyskretna meta pod spodem. */
 .exp-row {
-  display: flex; flex-direction: column; gap: 8px;
-  padding: 12px; border-radius: 12px;
-  background: #fbfbfd; border: 1px solid var(--line);
+  padding: 12px 14px; border-radius: 14px;
+  background: #fff; border: 1px solid var(--line);
+  transition: border-color .2s, background .2s;
 }
-.exp-row.paid { background: #f2fbf4; border-color: #cdeccf; }
+.exp-row:hover { border-color: #d8d8dd; }
+.exp-row.paid { background: #f8fcf9; border-color: #d9eede; }
 
+.exp-main { display: flex; align-items: center; gap: 10px; }
+.exp-ico { font-size: 17px; width: 24px; text-align: center; flex: none; }
+
+/* Pola-duchy: bez ramek, dopóki nie najedziesz / nie klikniesz. */
 .exp-row input {
-  border: 1px solid var(--line); background: #fff; padding: 9px 12px; font-size: 14px;
-  border-radius: 9px; min-width: 0;
+  border: 1px solid transparent; background: transparent; border-radius: 9px;
+  padding: 7px 10px; font-size: 15px; color: var(--text); min-width: 0;
+  transition: background .15s, border-color .15s;
 }
-.exp-row input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,113,227,.12); }
-.exp-line1 { display: flex; align-items: center; gap: 8px; }
+.exp-row input:hover { background: #f5f5f7; }
+.exp-row input:focus {
+  outline: none; background: #fff; border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0,113,227,.12);
+}
 .exp-cat { flex: 1; font-weight: 500; }
 
-.exp-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.exp-amt { width: 120px; text-align: right; }
-.exp-lim { width: 96px; text-align: right; }
-.exp-share { font-size: 12px; color: var(--text-2); margin-left: auto; white-space: nowrap; }
-.exp-paid {
-  border: none; background: #e5e5ea; color: var(--text-2); padding: 8px 12px;
-  border-radius: 8px; font-size: 12px; font-weight: 500; white-space: nowrap;
+/* Kwota — najważniejsza liczba w wierszu. */
+.exp-amt-wrap { display: flex; align-items: baseline; gap: 3px; flex: none; }
+.exp-amt {
+  width: 118px; text-align: right; font-size: 17px; font-weight: 600;
+  font-variant-numeric: tabular-nums; letter-spacing: -.01em;
 }
-.exp-paid.on { background: var(--accent-2); color: #fff; }
-.exp-del {
-  border: none; background: transparent; color: var(--text-2); font-size: 15px;
-  width: 32px; height: 32px; border-radius: 7px; flex: none; transition: all .2s;
-}
-.exp-del:hover { background: #ffe5e3; color: var(--danger); }
+.exp-cur { font-size: 13px; color: var(--text-2); font-weight: 500; }
 
-/* Box "Rata hipoteki" — osobny wiersz z wyraźnym odstępem od listy wydatków. */
-.exp-row.fixed {
-  flex-direction: row; align-items: center; gap: 10px;
-  background: #fff8ec; border-color: #f5e2bf; margin-bottom: 14px;
+.exp-check {
+  flex: none; width: 28px; height: 28px; border-radius: 50%;
+  border: 1.5px solid #d5d5da; background: #fff; color: transparent;
+  font-size: 14px; line-height: 1; display: grid; place-items: center; transition: all .18s;
 }
-.exp-cat-fixed { flex: 1; font-weight: 500; font-size: 14px; }
-.exp-amt-fixed { font-weight: 600; }
-.exp-row.fixed .exp-share { margin-left: 0; }
+.exp-check:hover { border-color: var(--accent-2); color: #c9e8d0; }
+.exp-check.on { background: var(--accent-2); border-color: var(--accent-2); color: #fff; }
+
+.exp-del {
+  flex: none; width: 28px; height: 28px; border-radius: 8px; border: none;
+  background: transparent; color: #c4c4c9; font-size: 15px; opacity: 0; transition: all .18s;
+}
+.exp-row:hover .exp-del, .exp-del:focus { opacity: 1; }
+/* Na dotyku nie ma najechania — przycisk usuwania musi być zawsze widoczny. */
+@media (hover: none) { .exp-del { opacity: 1; } }
+.exp-del:hover { background: #ffe9e7; color: var(--danger); }
+
+/* Meta — drugi plan: udział % i opcjonalny limit. */
+.exp-meta {
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 4px; padding-left: 34px;
+  font-size: 12px; color: var(--text-2);
+}
+.exp-share { font-variant-numeric: tabular-nums; }
+.exp-lim-wrap { margin-left: auto; display: flex; align-items: center; gap: 2px; }
+.exp-lim-label { color: #b8b8bf; }
+.exp-lim {
+  width: 84px; text-align: right; font-size: 12px !important;
+  padding: 3px 8px !important; color: var(--text-2);
+}
+.exp-lim::placeholder { color: #b8b8bf; }
+
+/* Rata hipoteki — wyróżniona, z odstępem od listy. */
+.exp-row.fixed { background: #fffaf0; border-color: #f0e2c6; margin-bottom: 12px; }
+.exp-row.fixed:hover { border-color: #e6d3ad; }
+.exp-cat-fixed { flex: 1; font-weight: 500; font-size: 15px; }
+.exp-cat-fixed em { font-style: normal; color: var(--text-2); font-weight: 400; font-size: 13px; }
+.exp-amt-fixed { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
 
 .limit-bar {
-  height: 5px; border-radius: 3px; background: #e5e5ea;
-  overflow: hidden;
+  height: 4px; border-radius: 3px; background: #ececef;
+  overflow: hidden; margin-top: 8px; margin-left: 34px;
 }
 .limit-bar i { display: block; height: 100%; border-radius: 3px; transition: width .3s; }
 .limit-bar.green i { background: var(--accent-2); }
@@ -294,7 +337,7 @@ canvas { max-height: 340px; }
 @media (max-width: 520px) {
   .hero { grid-template-columns: 1fr; }
   .month-switch h2 { font-size: 24px; min-width: 0; }
-  .exp-amt { width: 100px; }
-  .exp-lim { width: 84px; }
+  .exp-amt { width: 96px; font-size: 16px; }
+  .exp-meta, .limit-bar { padding-left: 0; margin-left: 0; }
   .container { padding: 12px 16px 50px; }
 }
