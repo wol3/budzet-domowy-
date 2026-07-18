@@ -83,6 +83,31 @@ export async function saveYear(yearId, data) {
   await setDoc(doc(db, "years", String(yearId)), data);
 }
 
+// Które lata mają już plan — do podpowiedzi w przełączniku.
+export async function listYears() {
+  const snap = await getDocs(collection(db, "years"));
+  return snap.docs.map((d) => d.id).sort();
+}
+
+// Nowy rok na bazie poprzedniego: przenosimy miesięczne cele i wydatki
+// jednorazowe, a jako punkt startowy bierzemy ostatni znany stan z tamtego
+// roku (faktyczny, a gdy go brak — założenie).
+export async function createYearFrom(sourceId, targetId) {
+  const src = await loadYear(sourceId);
+  const base = emptyYear(targetId);
+  if (src) {
+    const months = src.months || [];
+    const rev = [...months].reverse();
+    const lastActual = rev.find((m) => m.actual !== null && m.actual !== undefined);
+    const lastAssum = rev.find((m) => m.assumption !== null && m.assumption !== undefined);
+    base.startBalance = lastActual?.actual ?? lastAssum?.assumption ?? 0;
+    base.months = base.months.map((m, i) => ({ ...m, planned: months[i]?.planned ?? 0 }));
+    base.oneOffs = (src.oneOffs || []).map((o) => ({ ...o, id: newId() }));
+  }
+  await saveYear(targetId, base);
+  return base;
+}
+
 // --- Cele ----------------------------------------------------------------
 
 export async function loadGoals() {

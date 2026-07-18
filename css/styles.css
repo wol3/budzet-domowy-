@@ -448,3 +448,12 @@ canvas { max-height: 340px; }
   .one-row { flex-wrap: wrap; }
   .one-row .field-money { width: 130px; }
 }
+
+/* Przełącznik lat w widoku "Rok". */
+.year-switch {
+  display: flex; align-items: center; justify-content: center; gap: 20px;
+  margin-bottom: 24px;
+}
+.year-label { text-align: center; min-width: 150px; }
+.year-label .eyebrow { margin-bottom: 2px; }
+.year-label h2 { font-size: 32px; letter-spacing: -.02em; }

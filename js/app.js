@@ -16,6 +16,7 @@ const state = {
   allBudgets: [],
   yearId: new Date().getFullYear(),
   year: null,
+  knownYears: [],
   view: "budget",
   saveTimer: null,
   yearTimer: null,
@@ -106,6 +107,7 @@ const yearActions = {
   async importFromExcel() {
     state.year = JSON.parse(JSON.stringify(YEAR_2026));
     await store.saveYear(state.yearId, state.year);
+    state.knownYears = await store.listYears();
     setSaveStatus("saved");
     renderCurrent();
   },
@@ -145,30 +147,77 @@ function renderCurrent() {
   }
 }
 
-// Rok: jeśli nie ma jeszcze planu, proponujemy import z arkusza.
+// Przełącznik lat — bez niego apka "wygasa" z końcem roku.
+async function loadYearData(yearId) {
+  state.yearId = yearId;
+  try {
+    state.year = await store.loadYear(yearId);
+  } catch (e) {
+    console.error("Nie udało się wczytać planu rocznego:", e);
+    state.year = null;
+  }
+  renderCurrent();
+}
+
+function yearSwitcher() {
+  const nav = document.createElement("div");
+  nav.className = "year-switch";
+  nav.innerHTML = `
+    <button class="btn-round" id="y-prev" aria-label="Poprzedni rok">‹</button>
+    <div class="year-label"><span class="eyebrow">Plan roczny</span><h2>${state.yearId}</h2></div>
+    <button class="btn-round" id="y-next" aria-label="Następny rok">›</button>`;
+  nav.querySelector("#y-prev").addEventListener("click", () => loadYearData(state.yearId - 1));
+  nav.querySelector("#y-next").addEventListener("click", () => loadYearData(state.yearId + 1));
+  return nav;
+}
+
+// Rok: jeśli nie ma jeszcze planu, proponujemy sensowne drogi startu.
 function renderYearView() {
   const host = el("view-year");
+  host.innerHTML = "";
+  host.appendChild(yearSwitcher());
+
   if (!state.year) {
-    host.innerHTML = `
-      <section class="card empty-year">
-        <div class="empty-ico">📅</div>
-        <h3>Brak planu na ${state.yearId}</h3>
-        <p>Możesz zacząć od pustego planu albo wczytać ten z Twojego arkusza
-           (start roku, cele miesięczne i wydatki jednorazowe).</p>
-        <div class="empty-actions">
-          <button class="btn-primary" id="y-import">Wczytaj plan z arkusza</button>
-          <button class="btn-ghost" id="y-empty">Zacznij od zera</button>
-        </div>
-      </section>`;
-    el("y-import").addEventListener("click", () => yearActions.importFromExcel());
+    const prev = state.yearId - 1;
+    const hasPrev = state.knownYears.includes(String(prev));
+    const isSheetYear = state.yearId === 2026; // rok, dla którego mamy dane z arkusza
+
+    const box = document.createElement("section");
+    box.className = "card empty-year";
+    box.innerHTML = `
+      <div class="empty-ico">📅</div>
+      <h3>Brak planu na ${state.yearId}</h3>
+      <p>${hasPrev
+        ? `Możesz przenieść cele miesięczne i wydatki jednorazowe z ${prev} —
+           jako punkt startowy weźmiemy ostatni znany stan z tamtego roku.`
+        : "Zacznij nowy plan: start roku, cele miesięczne i duże wydatki."}</p>
+      <div class="empty-actions">
+        ${hasPrev ? `<button class="btn-primary" id="y-from-prev">Utwórz na podstawie ${prev}</button>` : ""}
+        ${isSheetYear ? `<button class="${hasPrev ? "btn-ghost" : "btn-primary"}" id="y-import">Wczytaj plan z arkusza</button>` : ""}
+        <button class="btn-ghost" id="y-empty">Zacznij od zera</button>
+      </div>`;
+    host.appendChild(box);
+
+    const imp = el("y-import");
+    if (imp) imp.addEventListener("click", () => yearActions.importFromExcel());
+    const fromPrev = el("y-from-prev");
+    if (fromPrev) fromPrev.addEventListener("click", async () => {
+      state.year = await store.createYearFrom(prev, state.yearId);
+      state.knownYears = await store.listYears();
+      renderCurrent();
+    });
     el("y-empty").addEventListener("click", async () => {
       state.year = store.emptyYear(state.yearId);
       await store.saveYear(state.yearId, state.year);
+      state.knownYears = await store.listYears();
       renderCurrent();
     });
     return;
   }
-  renderYear(host, state.year, yearActions);
+
+  const body = document.createElement("div");
+  host.appendChild(body);
+  renderYear(body, state.year, yearActions);
 }
 
 function switchView(view) {
@@ -249,6 +298,7 @@ function boot() {
       }
       try {
         state.year = await store.loadYear(state.yearId);
+        state.knownYears = await store.listYears();
         if (state.view === "year") renderCurrent();
       } catch (e) {
         console.error("Nie udało się wczytać planu rocznego:", e);
