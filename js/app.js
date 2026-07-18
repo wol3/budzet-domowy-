@@ -6,6 +6,7 @@ import { renderCharts } from "./charts.js";
 import { renderGoals } from "./goals.js";
 import { renderYear } from "./year.js";
 import { YEAR_SEEDS, SEED_YEARS } from "./year-seed.js";
+import { MONTH_SEED } from "./month-seed.js";
 import { el, money, percent, monthLabel, shiftMonth, esc } from "./util.js";
 import { computeSummary } from "./calc.js";
 
@@ -259,6 +260,13 @@ function wireHeader() {
     if (src) await store.createMonthFrom(src, state.monthId);
     else await store.saveBudget(state.monthId, store.emptyBudget());
     await loadMonth(state.monthId);
+  });
+  // Jednorazowy import bieżącego miesiąca z arkusza (MAIN_v2).
+  el("import-month").addEventListener("click", async () => {
+    state.budget = JSON.parse(JSON.stringify(MONTH_SEED));
+    await store.saveBudget(state.monthId, state.budget);
+    await loadMonth(state.monthId);
+    setSaveStatus("saved");
   });
   document.querySelectorAll(".nav-btn").forEach((b) =>
     b.addEventListener("click", () => switchView(b.dataset.view)));
