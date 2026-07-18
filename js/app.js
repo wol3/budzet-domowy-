@@ -4,6 +4,8 @@ import * as store from "./store.js";
 import { renderBudget } from "./budget.js";
 import { renderCharts } from "./charts.js";
 import { renderGoals } from "./goals.js";
+import { renderYear } from "./year.js";
+import { YEAR_2026 } from "./year-seed.js";
 import { el, money, percent, monthLabel, shiftMonth, esc } from "./util.js";
 import { computeSummary } from "./calc.js";
 
@@ -12,8 +14,11 @@ const state = {
   budget: store.emptyBudget(),
   goals: [],
   allBudgets: [],
+  yearId: new Date().getFullYear(),
+  year: null,
   view: "budget",
   saveTimer: null,
+  yearTimer: null,
 };
 
 // --- Zapis z debounce (nie zapisujemy przy każdym wciśnięciu klawisza) ---
@@ -70,6 +75,42 @@ const actions = {
   },
 };
 
+// --- Plan roczny ----------------------------------------------------------
+function scheduleYearSave() {
+  clearTimeout(state.yearTimer);
+  setSaveStatus("saving");
+  state.yearTimer = setTimeout(async () => {
+    try {
+      await store.saveYear(state.yearId, state.year);
+      setSaveStatus("saved");
+    } catch (e) { console.error(e); setSaveStatus("error"); }
+  }, 600);
+}
+
+const yearActions = {
+  updateYear(patch) { Object.assign(state.year, patch); scheduleYearSave(); },
+  updateMonth(i, patch) { Object.assign(state.year.months[i], patch); scheduleYearSave(); },
+  updateOneOff(id, patch) {
+    const o = state.year.oneOffs.find((x) => x.id === id);
+    if (o) { Object.assign(o, patch); scheduleYearSave(); }
+  },
+  addOneOff() {
+    state.year.oneOffs.push({ id: store.newId(), name: "", amount: 0 });
+    scheduleYearSave(); renderCurrent();
+  },
+  deleteOneOff(id) {
+    state.year.oneOffs = state.year.oneOffs.filter((x) => x.id !== id);
+    scheduleYearSave(); renderCurrent();
+  },
+  // Jednorazowy import planu z arkusza (zakładka "Rok 2026").
+  async importFromExcel() {
+    state.year = JSON.parse(JSON.stringify(YEAR_2026));
+    await store.saveYear(state.yearId, state.year);
+    setSaveStatus("saved");
+    renderCurrent();
+  },
+};
+
 async function reloadGoals() {
   state.goals = await store.loadGoals();
   if (state.view === "goals") renderGoals(el("view-goals"), state.goals, actions);
@@ -99,11 +140,42 @@ function renderCurrent() {
     renderCharts(el("view-charts"), state.budget, state.allBudgets);
   } else if (state.view === "goals") {
     renderGoals(el("view-goals"), state.goals, actions);
+  } else if (state.view === "year") {
+    renderYearView();
   }
+}
+
+// Rok: jeśli nie ma jeszcze planu, proponujemy import z arkusza.
+function renderYearView() {
+  const host = el("view-year");
+  if (!state.year) {
+    host.innerHTML = `
+      <section class="card empty-year">
+        <div class="empty-ico">📅</div>
+        <h3>Brak planu na ${state.yearId}</h3>
+        <p>Możesz zacząć od pustego planu albo wczytać ten z Twojego arkusza
+           (start roku, cele miesięczne i wydatki jednorazowe).</p>
+        <div class="empty-actions">
+          <button class="btn-primary" id="y-import">Wczytaj plan z arkusza</button>
+          <button class="btn-ghost" id="y-empty">Zacznij od zera</button>
+        </div>
+      </section>`;
+    el("y-import").addEventListener("click", () => yearActions.importFromExcel());
+    el("y-empty").addEventListener("click", async () => {
+      state.year = store.emptyYear(state.yearId);
+      await store.saveYear(state.yearId, state.year);
+      renderCurrent();
+    });
+    return;
+  }
+  renderYear(host, state.year, yearActions);
 }
 
 function switchView(view) {
   state.view = view;
+  // Przełącznik miesięcy dotyczy tylko widoków miesięcznych.
+  const ms = document.querySelector(".month-switch");
+  if (ms) ms.hidden = (view === "year" || view === "goals");
   document.querySelectorAll(".nav-btn").forEach((b) =>
     b.classList.toggle("active", b.dataset.view === view));
   document.querySelectorAll(".view").forEach((v) =>
@@ -174,6 +246,12 @@ function boot() {
         if (state.view === "goals") renderCurrent();
       } catch (e) {
         console.error("Nie udało się wczytać celów:", e);
+      }
+      try {
+        state.year = await store.loadYear(state.yearId);
+        if (state.view === "year") renderCurrent();
+      } catch (e) {
+        console.error("Nie udało się wczytać planu rocznego:", e);
       }
     },
     () => {

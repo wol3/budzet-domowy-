@@ -7,6 +7,7 @@
 import { money, percent, esc } from "./util.js";
 import { computeSummary, shareOf, limitStatus, mortgageMatiPart } from "./calc.js";
 import { categoryIcon } from "./icons.js";
+import { moneyField } from "./ui.js";
 
 function moneyInput(value, placeholder = "") {
   const input = document.createElement("input");
@@ -44,15 +45,9 @@ export function renderBudget(container, budget, actions) {
   container.appendChild(hero);
 
   // ---------- DOCHODY + HIPOTEKA ----------
-  const numberField = (parent, label, value, onInput) => {
-    const wrap = document.createElement("label");
-    wrap.className = "field";
-    wrap.innerHTML = `<span>${esc(label)}</span>`;
-    const input = moneyInput(value);
-    input.addEventListener("input", onEdit(() => onInput(parseFloat(input.value) || 0)));
-    wrap.appendChild(input);
-    parent.appendChild(wrap);
-  };
+  // Wspólne pole kwoty (z sufiksem "zł") — spójna waluta w całej apce.
+  const numberField = (parent, label, value, onInput) =>
+    moneyField(parent, label, value, (v) => { onInput(v); refresh(); });
 
   const top = document.createElement("div");
   top.className = "grid-2";

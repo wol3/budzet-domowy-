@@ -1,0 +1,38 @@
+// Plan roczny przeniesiony 1:1 z arkusza (zakładka "Rok 2026").
+// Używany tylko przy pierwszym imporcie — potem dane żyją w Firestore.
+export const YEAR_2026 = {
+  startBalance: 65000,
+  months: [
+    { m: 1,  planned: 3000, assumption: 68000, actual: null },
+    { m: 2,  planned: 9500, assumption: 75300, actual: null },
+    { m: 3,  planned: 1500, assumption: 26800, actual: null },
+    { m: 4,  planned: 9000, assumption: 36624, actual: null },
+    { m: 5,  planned: 9500, assumption: 37624, actual: null },
+    { m: 6,  planned: 7500, assumption: 45124, actual: 43000 },
+    { m: 7,  planned: 9500, assumption: 49624, actual: null },
+    { m: 8,  planned: 9500, assumption: 41124, actual: null },
+    { m: 9,  planned: 9500, assumption: 50624, actual: null },
+    { m: 10, planned: 9500, assumption: 59872, actual: null },
+    { m: 11, planned: 9500, assumption: 66372, actual: null },
+    { m: 12, planned: 9500, assumption: 74872, actual: null },
+  ],
+  oneOffs: [
+    { id: "o01", name: "Wakacje", amount: 18000 },
+    { id: "o02", name: "Ubezpieczenie samochód", amount: 3036 },
+    { id: "o03", name: "Święta", amount: 1000 },
+    { id: "o04", name: "Ubezpieczenie mieszkania", amount: 375 },
+    { id: "o05", name: "Imprezy rodzinne", amount: 0 },
+    { id: "o06", name: "Serwis Cupra", amount: 2000 },
+    { id: "o07", name: "Remont pokój Ignasia", amount: 5000 },
+    { id: "o08", name: "Podatek od nieruchomości", amount: 252 },
+    { id: "o09", name: "Majówka rocznica", amount: 5000 },
+    { id: "o10", name: "35 Kinga", amount: 3000 },
+    { id: "o11", name: "Wymiana opon", amount: 440 },
+    { id: "o12", name: "Nadpłata kredytu", amount: 50000 },
+    { id: "o13", name: "Narty Ignaś", amount: 1500 },
+    { id: "o14", name: "Wyjazd góry", amount: 700 },
+    { id: "o15", name: "Chrzest Wiktor", amount: 1500 },
+    { id: "o16", name: "Rower Ignasia", amount: 600 },
+    { id: "o17", name: "Dentysta Ignaś", amount: 2000 },
+  ],
+};

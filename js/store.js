@@ -62,6 +62,27 @@ export async function loadAllBudgets() {
     .sort((a, b) => a.id.localeCompare(b.id));
 }
 
+// --- Plan roczny ---------------------------------------------------------
+
+export function emptyYear(y) {
+  return {
+    startBalance: 0,
+    months: Array.from({ length: 12 }, (_, i) => ({
+      m: i + 1, planned: 0, assumption: null, actual: null,
+    })),
+    oneOffs: [],
+  };
+}
+
+export async function loadYear(yearId) {
+  const snap = await getDoc(doc(db, "years", String(yearId)));
+  return snap.exists() ? { ...emptyYear(yearId), ...snap.data() } : null;
+}
+
+export async function saveYear(yearId, data) {
+  await setDoc(doc(db, "years", String(yearId)), data);
+}
+
 // --- Cele ----------------------------------------------------------------
 
 export async function loadGoals() {
