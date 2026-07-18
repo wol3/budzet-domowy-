@@ -164,7 +164,7 @@ function yearSwitcher() {
   nav.className = "year-switch";
   nav.innerHTML = `
     <button class="btn-round" id="y-prev" aria-label="Poprzedni rok">‹</button>
-    <div class="year-label"><span class="eyebrow">Plan roczny</span><h2>${state.yearId}</h2></div>
+    <div class="year-label"><h2>${state.yearId}</h2></div>
     <button class="btn-round" id="y-next" aria-label="Następny rok">›</button>`;
   nav.querySelector("#y-prev").addEventListener("click", () => loadYearData(state.yearId - 1));
   nav.querySelector("#y-next").addEventListener("click", () => loadYearData(state.yearId + 1));
