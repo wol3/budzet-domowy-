@@ -21,6 +21,14 @@ export function monthLabel(id) {
   return `${names[m - 1]} ${y}`;
 }
 
+// Miejscownik nazwy miesiąca — "w czerwcu", nie "w czerwiec".
+const LOCATIVE = ["styczniu","lutym","marcu","kwietniu","maju","czerwcu",
+  "lipcu","sierpniu","wrześniu","październiku","listopadzie","grudniu"];
+export function monthLocative(id) {
+  const m = Number(String(id).split("-")[1]);
+  return LOCATIVE[m - 1] || "";
+}
+
 // Poprzedni / następny miesiąc względem id.
 export function shiftMonth(id, delta) {
   const [y, m] = id.split("-").map(Number);

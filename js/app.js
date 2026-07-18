@@ -5,6 +5,7 @@ import { renderBudget } from "./budget.js";
 import { renderCharts } from "./charts.js";
 import { renderGoals } from "./goals.js";
 import { renderYear } from "./year.js";
+import { renderDashboard } from "./dashboard.js";
 import { YEAR_SEEDS, SEED_YEARS } from "./year-seed.js";
 import { MONTH_SEED } from "./month-seed.js";
 import { el, money, percent, monthLabel, shiftMonth, esc } from "./util.js";
@@ -19,7 +20,7 @@ const state = {
   year: null,
   knownYears: [],
   allYears: [],
-  view: "budget",
+  view: "dash",
   saveTimer: null,
   yearTimer: null,
 };
@@ -128,8 +129,9 @@ async function reloadGoals() {
 function renderDefaultGoalBanner() {
   const host = el("default-goal");
   if (!host) return;
+  // Baner tylko w widoku miesiąca — na pulpicie cele mają własną kartę.
   const g = state.goals.find((x) => x.isDefault);
-  if (!g) { host.innerHTML = ""; host.hidden = true; return; }
+  if (!g || state.view !== "budget") { host.hidden = true; return; }
   host.hidden = false;
   const ratio = g.targetAmount > 0 ? Math.min(1, (g.currentAmount || 0) / g.targetAmount) : 0;
   host.innerHTML = `
@@ -140,7 +142,13 @@ function renderDefaultGoalBanner() {
 
 // --- Render bieżącego widoku ---------------------------------------------
 function renderCurrent() {
-  if (state.view === "budget") {
+  renderDefaultGoalBanner(); // sam decyduje, czy się pokazać
+  if (state.view === "dash") {
+    renderDashboard(el("view-dash"), {
+      budget: state.budget, allBudgets: state.allBudgets, monthId: state.monthId,
+      year: state.year, yearId: state.yearId, goals: state.goals,
+    }, actions);
+  } else if (state.view === "budget") {
     renderBudget(el("view-budget"), state.budget, actions);
     renderDefaultGoalBanner();
   } else if (state.view === "charts") {
