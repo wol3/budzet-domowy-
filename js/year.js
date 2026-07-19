@@ -30,7 +30,19 @@ export function computeYear(year) {
   const plannedTotal = rows.reduce((s, r) => s + (+r.planned || 0), 0);
   const oneOffTotal = oneOffs.reduce((s, o) => s + (+o.amount || 0), 0);
 
-  return { start, rows, last, planEnd, plannedTotal, oneOffTotal, oneOffs };
+  // Rozkład jednorazowych na miesiące. Pozycje bez przypisanego miesiąca
+  // trafiają do "nieprzypisane" — nie zgadujemy, kiedy wypadają.
+  const oneOffByMonth = Array(12).fill(0);
+  let oneOffUnassigned = 0;
+  oneOffs.forEach((o) => {
+    const amt = +o.amount || 0;
+    const m = Number(o.month);
+    if (m >= 1 && m <= 12) oneOffByMonth[m - 1] += amt;
+    else oneOffUnassigned += amt;
+  });
+
+  return { start, rows, last, planEnd, plannedTotal, oneOffTotal, oneOffs,
+    oneOffByMonth, oneOffUnassigned };
 }
 
 // --- Rozpoznawanie wydatków, które wracają co roku -------------------------
@@ -231,6 +243,19 @@ export function renderYear(container, year, actions, allYears = [], yearId = nul
       refresh();
     });
 
+    // Miesiąc, na który wydatek przypada — opcjonalny, ale bez niego
+    // nie wiadomo, kiedy obciąża budżet.
+    const monthSel = document.createElement("select");
+    monthSel.className = "one-month";
+    monthSel.title = "Miesiąc, w którym wypada ten wydatek";
+    monthSel.innerHTML = `<option value="">— miesiąc —</option>` +
+      MONTHS.map((n, i) => `<option value="${i + 1}">${n}</option>`).join("");
+    monthSel.value = o.month ? String(o.month) : "";
+    monthSel.addEventListener("change", () => {
+      actions.updateOneOff(o.id, { month: monthSel.value ? Number(monthSel.value) : null });
+      refresh();
+    });
+
     const share = document.createElement("span");
     share.className = "one-share";
 
@@ -238,11 +263,26 @@ export function renderYear(container, year, actions, allYears = [], yearId = nul
     del.className = "exp-del"; del.textContent = "✕"; del.title = "Usuń";
     del.addEventListener("click", () => actions.deleteOneOff(o.id));
 
-    row.append(ico, nameI, box, share, del);
+    row.append(ico, nameI, monthSel, box, share, del);
     oneList.appendChild(row);
     refs.oneOffs.push({ item: o, share });
   });
   oneCard.appendChild(oneList);
+
+  // Rozkład w roku — od razu widać, które miesiące są obciążone.
+  const dist = document.createElement("div");
+  dist.className = "oo-dist";
+  const distCols = MONTHS.map((n, i) => {
+    const col = document.createElement("div");
+    col.className = "oo-col";
+    col.innerHTML = `<div class="oo-bar"><i></i></div><span class="oo-m">${n.slice(0, 3)}</span><b class="oo-v"></b>`;
+    dist.appendChild(col);
+    return { col, bar: col.querySelector("i"), val: col.querySelector(".oo-v") };
+  });
+  oneCard.appendChild(dist);
+  const distNote = document.createElement("p");
+  distNote.className = "oo-note";
+  oneCard.appendChild(distNote);
 
   const addOne = document.createElement("button");
   addOne.className = "btn-add"; addOne.textContent = "+ Dodaj wydatek jednorazowy";
@@ -308,6 +348,20 @@ export function renderYear(container, year, actions, allYears = [], yearId = nul
     });
 
     oneCard.querySelector(".one-total").textContent = money(y.oneOffTotal);
+
+    const maxM = Math.max(...y.oneOffByMonth, 1);
+    distCols.forEach((c, i) => {
+      const v = y.oneOffByMonth[i];
+      c.bar.style.height = v > 0 ? Math.max(6, (v / maxM) * 100) + "%" : "0%";
+      c.col.classList.toggle("empty", v === 0);
+      // Poniżej tysiąca pokazujemy pełną kwotę — "0k" wprowadzało w błąd.
+      c.val.textContent = v <= 0 ? "" : v >= 1000 ? Math.round(v / 1000) + "k" : String(Math.round(v));
+      c.col.title = v > 0 ? `${MONTHS[i]}: ${money(v)}` : `${MONTHS[i]}: brak`;
+    });
+    distNote.textContent = y.oneOffUnassigned > 0
+      ? `${money(y.oneOffUnassigned)} bez przypisanego miesiąca — ustaw go przy pozycjach powyżej.`
+      : "Wszystkie wydatki mają przypisany miesiąc.";
+    distNote.classList.toggle("warn", y.oneOffUnassigned > 0);
     refs.oneOffs.forEach((o) => {
       o.share.textContent = y.oneOffTotal > 0
         ? percent((+o.item.amount || 0) / y.oneOffTotal) : "";

@@ -40,7 +40,7 @@ export function renderBudget(container, budget, actions) {
   };
   const hIncome = heroCard("Dochód łączny");
   const hCosts = heroCard("Koszty łączne");
-  const hLeft = heroCard("Zostaje");
+  const hLeft = heroCard("Zostaje po buforze");
   const hRate = heroCard("Stopa oszczędności", "accent");
   const hLeftCardEl = hLeft.closest(".hero-card");
   container.appendChild(hero);
@@ -272,9 +272,11 @@ export function renderBudget(container, budget, actions) {
 
     hIncome.textContent = money(s.totalIncome);
     hCosts.textContent = money(s.totalCosts);
-    hLeft.textContent = money(s.leftBeforeBuffer);
-    hLeftCardEl.classList.toggle("good", s.leftBeforeBuffer >= 0);
-    hLeftCardEl.classList.toggle("bad", s.leftBeforeBuffer < 0);
+    // Ta sama definicja co na Pulpicie i w arkuszu: po odjęciu bufora.
+    // Wersja przed buforem została w podsumowaniu niżej, jako osobny wiersz.
+    hLeft.textContent = money(s.savings);
+    hLeftCardEl.classList.toggle("good", s.savings >= 0);
+    hLeftCardEl.classList.toggle("bad", s.savings < 0);
     hRate.textContent = percent(s.rateTotal);
 
     incFoot.querySelector("b").textContent = money(s.totalIncome);
