@@ -794,3 +794,8 @@ canvas { max-height: 340px; }
   .oo-v { display: none; }
   .oo-bar { height: 44px; }
 }
+
+/* Wpływy jednorazowe — odróżnione od wydatków kolorem */
+.one-row.income { background: #f7fcf9; border-color: #d9eede; }
+.one-row.income:hover { border-color: #b9e0c6; }
+.one-total.inc { color: var(--accent-2); }

@@ -152,6 +152,19 @@ const yearActions = {
     state.year.oneOffs = state.year.oneOffs.filter((x) => x.id !== id);
     scheduleYearSave(); renderCurrent();
   },
+  updateIncome(id, patch) {
+    const c = (state.year.incomes || []).find((x) => x.id === id);
+    if (c) { Object.assign(c, patch); scheduleYearSave(); }
+  },
+  addIncome() {
+    if (!state.year.incomes) state.year.incomes = [];
+    state.year.incomes.push({ id: store.newId(), name: "", amount: 0, month: null });
+    scheduleYearSave(); renderCurrent();
+  },
+  deleteIncome(id) {
+    state.year.incomes = (state.year.incomes || []).filter((x) => x.id !== id);
+    scheduleYearSave(); renderCurrent();
+  },
   // Jednorazowy import planu z arkusza (zakładka "Rok 2026").
   async importFromExcel() {
     const seed = YEAR_SEEDS[state.yearId];

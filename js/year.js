@@ -15,6 +15,7 @@ const num = (v) => (Number.isFinite(+v) && v !== null && v !== "" ? +v : null);
 export function computeYear(year) {
   const months = year.months || [];
   const oneOffs = year.oneOffs || [];
+  const incomes = year.incomes || [];
   const start = +year.startBalance || 0;
 
   const rows = months.map((m) => {
@@ -32,6 +33,17 @@ export function computeYear(year) {
 
   // Rozkład jednorazowych na miesiące. Pozycje bez przypisanego miesiąca
   // trafiają do "nieprzypisane" — nie zgadujemy, kiedy wypadają.
+  // Wpływy jednorazowe (np. zwrot podatku) — w arkuszu były w formule jako "+M5".
+  const incomeByMonth = Array(12).fill(0);
+  let incomeUnassigned = 0;
+  incomes.forEach((c) => {
+    const amt = +c.amount || 0;
+    const m = Number(c.month);
+    if (m >= 1 && m <= 12) incomeByMonth[m - 1] += amt;
+    else incomeUnassigned += amt;
+  });
+  const incomeTotal = incomes.reduce((a, c) => a + (+c.amount || 0), 0);
+
   const oneOffByMonth = Array(12).fill(0);
   let oneOffUnassigned = 0;
   oneOffs.forEach((o) => {
@@ -46,12 +58,13 @@ export function computeYear(year) {
   // od kolumny "Założenie", którą wpisujesz ręcznie.
   let bal = start;
   const projection = rows.map((r, i) => {
-    bal = bal + (+r.planned || 0) - oneOffByMonth[i];
+    bal = bal + (+r.planned || 0) - oneOffByMonth[i] + incomeByMonth[i];
     return Math.round(bal * 100) / 100;
   });
 
   return { start, rows, last, planEnd, plannedTotal, oneOffTotal, oneOffs,
-    oneOffByMonth, oneOffUnassigned, projection };
+    oneOffByMonth, oneOffUnassigned, projection,
+    incomes, incomeByMonth, incomeTotal, incomeUnassigned };
 }
 
 // --- Rozpoznawanie wydatków, które wracają co roku -------------------------
@@ -118,7 +131,7 @@ export function renderYear(container, year, actions, allYears = [], yearId = nul
   destroyCharts();
 
   let refresh = () => {};
-  const refs = { rows: [], oneOffs: [] };
+  const refs = { rows: [], oneOffs: [], incomes: [] };
 
   // ---------- HERO ----------
   const hero = document.createElement("div");
@@ -299,6 +312,71 @@ export function renderYear(container, year, actions, allYears = [], yearId = nul
   oneCard.appendChild(addOne);
   container.appendChild(oneCard);
 
+  // ---------- WPŁYWY JEDNORAZOWE ----------
+  // W arkuszu były ukryte w formule jako "+M5" (zwrot podatku) — bez nich
+  // prognoza nie mogła się domknąć.
+  const incCard = document.createElement("section");
+  incCard.className = "card";
+  incCard.appendChild(eyebrow("Jednorazowe wpływy w roku"));
+  const incHead = document.createElement("div");
+  incHead.className = "one-head";
+  incHead.innerHTML = `<h3>Wpływy dodatkowe</h3><span class="one-total inc"></span>`;
+  incCard.appendChild(incHead);
+
+  const incList = document.createElement("div");
+  incList.className = "one-list";
+  (year.incomes || []).forEach((c) => {
+    const row = document.createElement("div");
+    row.className = "one-row income";
+
+    const ico = document.createElement("span");
+    ico.className = "exp-ico"; ico.textContent = "💰";
+
+    const nameI = document.createElement("input");
+    nameI.type = "text"; nameI.className = "one-name"; nameI.value = c.name || "";
+    nameI.placeholder = "Nazwa wpływu";
+    nameI.addEventListener("input", () => actions.updateIncome(c.id, { name: nameI.value }));
+
+    const monthSel = document.createElement("select");
+    monthSel.className = "one-month";
+    monthSel.innerHTML = `<option value="">— miesiąc —</option>` +
+      MONTHS.map((n, i) => `<option value="${i + 1}">${n}</option>`).join("");
+    monthSel.value = c.month ? String(c.month) : "";
+    monthSel.addEventListener("change", () => {
+      actions.updateIncome(c.id, { month: monthSel.value ? Number(monthSel.value) : null });
+      refresh();
+    });
+
+    const box = document.createElement("div");
+    box.className = "field-money";
+    const amt = amountInput(c.amount, "0");
+    const cur = document.createElement("span");
+    cur.className = "field-cur"; cur.textContent = "zł";
+    box.append(amt, cur);
+    amt.addEventListener("input", () => {
+      actions.updateIncome(c.id, { amount: parseFloat(amt.value) || 0 });
+      refresh();
+    });
+
+    const del = document.createElement("button");
+    del.className = "exp-del"; del.textContent = "✕"; del.title = "Usuń";
+    del.addEventListener("click", () => actions.deleteIncome(c.id));
+
+    row.append(ico, nameI, monthSel, box, del);
+    incList.appendChild(row);
+  });
+  incCard.appendChild(incList);
+  if (!(year.incomes || []).length) {
+    incCard.insertAdjacentHTML("beforeend",
+      `<p class="empty">Brak wpływów dodatkowych. Dodaj np. zwrot podatku czy premię —
+       podniosą prognozę w wybranym miesiącu.</p>`);
+  }
+  const addInc = document.createElement("button");
+  addInc.className = "btn-add"; addInc.textContent = "+ Dodaj wpływ";
+  addInc.addEventListener("click", () => actions.addIncome());
+  incCard.appendChild(addInc);
+  container.appendChild(incCard);
+
   // ---------- B. Ranking pozycji w tym roku ----------
   const rankCard = document.createElement("section");
   rankCard.className = "card";
@@ -357,6 +435,7 @@ export function renderYear(container, year, actions, allYears = [], yearId = nul
     });
 
     oneCard.querySelector(".one-total").textContent = money(y.oneOffTotal);
+    incCard.querySelector(".one-total.inc").textContent = "+" + money(y.incomeTotal);
 
     const maxM = Math.max(...y.oneOffByMonth, 1);
     distCols.forEach((c, i) => {

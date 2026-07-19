@@ -71,6 +71,7 @@ export function emptyYear(y) {
       m: i + 1, planned: 0, assumption: null, actual: null,
     })),
     oneOffs: [],
+    incomes: [],
   };
 }
 
@@ -111,6 +112,7 @@ export async function createYearFrom(sourceId, targetId) {
     base.startBalance = lastActual?.actual ?? lastAssum?.assumption ?? 0;
     base.months = base.months.map((m, i) => ({ ...m, planned: months[i]?.planned ?? 0 }));
     base.oneOffs = (src.oneOffs || []).map((o) => ({ ...o, id: newId() }));
+    base.incomes = (src.incomes || []).map((c) => ({ ...c, id: newId() }));
   }
   await saveYear(targetId, base);
   return base;
