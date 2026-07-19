@@ -7,7 +7,8 @@ export function amountInput(value, placeholder = "0") {
   const input = document.createElement("input");
   input.type = "number";
   input.inputMode = "decimal";
-  input.step = "1";
+  // Kwoty mają grosze — bez tego 714,25 jest formalnie niepoprawne.
+  input.step = "0.01";
   input.placeholder = placeholder;
   input.value = value ?? "";
   return input;

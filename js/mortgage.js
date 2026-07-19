@@ -2,11 +2,8 @@
 // Świadomie NIE jest powiązany z ratą w budżecie miesięcznym: to osobna
 // historia, którą korygujesz ręcznie. Wszystkie różnice liczone na żywo —
 // w arkuszu były wpisywane z palca, tutaj wynikają z danych.
-import { money, money2, percent, esc } from "./util.js";
+import { money, percent, esc } from "./util.js";
 import { amountInput, eyebrow } from "./ui.js";
-
-// Grosze mają znaczenie tylko przy drobnych zmianach — inaczej "▲ 0 zł".
-const delta = (v) => (Math.abs(v) < 1 ? money2(v) : money(v));
 
 const FONT = { family: "-apple-system, 'SF Pro Text', Inter, sans-serif", size: 11 };
 const tooltipStyle = {
@@ -197,13 +194,13 @@ export function renderMortgage(container, history, actions) {
     if (r.fromPrev === null) {
       chg.textContent = "—"; chg.classList.add("muted");
     } else {
-      chg.textContent = (r.fromPrev > 0 ? "▼ " : r.fromPrev < 0 ? "▲ " : "") + delta(Math.abs(r.fromPrev));
+      chg.textContent = (r.fromPrev > 0 ? "▼ " : r.fromPrev < 0 ? "▲ " : "") + money(Math.abs(r.fromPrev));
       chg.classList.add(r.fromPrev > 0 ? "good" : r.fromPrev < 0 ? "bad" : "muted");
     }
 
     const fs = document.createElement("span");
     fs.className = "mh-start " + (r.fromStart <= 0 ? "good" : "bad");
-    fs.textContent = (r.fromStart >= 0 ? "+" : "") + delta(r.fromStart);
+    fs.textContent = (r.fromStart >= 0 ? "+" : "") + money(r.fromStart);
 
     const noteI = document.createElement("input");
     noteI.type = "text"; noteI.className = "mh-note";

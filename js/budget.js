@@ -4,7 +4,7 @@
 // WAŻNE: pola input budujemy JEDEN raz. Przy pisaniu NIE przebudowujemy DOM
 // (to gubiło focus po jednym znaku) — wywołujemy tylko refresh(), które
 // aktualizuje wartości pochodne (sumy, %, paski, podsumowanie) w miejscu.
-import { money, percent, esc } from "./util.js";
+import { money, amount, percent, esc } from "./util.js";
 import { computeSummary, shareOf, limitStatus, mortgageMatiPart } from "./calc.js";
 import { categoryIcon } from "./icons.js";
 import { moneyField } from "./ui.js";
@@ -13,7 +13,8 @@ function moneyInput(value, placeholder = "") {
   const input = document.createElement("input");
   input.type = "number";
   input.inputMode = "decimal";
-  input.step = "1";
+  // Kwoty mają grosze — bez tego 714,25 jest formalnie niepoprawne.
+  input.step = "0.01";
   if (placeholder) input.placeholder = placeholder;
   input.value = value ?? "";
   return input;
@@ -283,7 +284,7 @@ export function renderBudget(container, budget, actions) {
     colKinia.totalEl.textContent = money(s.totalKinia);
     if (colMati.fixed) {
       colMati.fixed.hidden = !s.matiPart;
-      colMati.fixedAmt.textContent = new Intl.NumberFormat("pl-PL").format(Math.round(s.matiPart));
+      colMati.fixedAmt.textContent = amount(s.matiPart);
       colMati.fixedShare.textContent = percent(shareOf(s.matiPart, s.totalMati)) + " wydatków";
     }
 

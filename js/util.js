@@ -1,17 +1,27 @@
 // Drobne helpery formatowania i DOM.
-const plMoney = new Intl.NumberFormat("pl-PL", {
-  style: "currency", currency: "PLN", maximumFractionDigits: 0,
-});
-const plMoney2 = new Intl.NumberFormat("pl-PL", {
-  style: "currency", currency: "PLN", minimumFractionDigits: 2, maximumFractionDigits: 2,
-});
+// Jedna konwencja kwot w całej apce: złote z groszami (1 511,62 zł).
+// Grupujemy tysiące ręcznie, bo polska lokalizacja w Intl NIE grupuje liczb
+// czterocyfrowych ("4540,47" obok "10 959,53"), a opcja minimumGroupingDigits
+// nie jest wszędzie obsługiwana. W kolumnie kwot spójność jest ważniejsza
+// niż wierność domyślnym regułom CLDR.
+const NBSP = " "; // twarda spacja — kwota nie łamie się na końcu linii
+function group(v) {
+  const n = Number(v) || 0;
+  const [int, frac] = Math.abs(n).toFixed(2).split(".");
+  const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, NBSP);
+  return (n < 0 ? "-" : "") + grouped + "," + frac;
+}
+
 const plPercent = new Intl.NumberFormat("pl-PL", {
   style: "percent", maximumFractionDigits: 1,
 });
 
-export const money = (v) => plMoney.format(Number(v) || 0);
-export const money2 = (v) => plMoney2.format(Number(v) || 0);
+export const money = (v) => group(v) + NBSP + "zł";
+// Sama liczba, bez "zł" — tam, gdzie walutę wyświetla osobny element obok pola.
+export const amount = (v) => group(v);
 export const percent = (v) => plPercent.format(Number(v) || 0);
+// Zachowane dla zgodności — money() ma już grosze.
+export const money2 = money;
 
 // Nazwa miesiąca po polsku z id "YYYY-MM".
 export function monthLabel(id) {
