@@ -41,8 +41,17 @@ export function computeYear(year) {
     else oneOffUnassigned += amt;
   });
 
+  // Prognoza: stan poprzedni + odłożone − wydatki przypisane na ten miesiąc.
+  // Liczona na żywo, więc reaguje na zmianę miesiąca przy wydatku — w odróżnieniu
+  // od kolumny "Założenie", którą wpisujesz ręcznie.
+  let bal = start;
+  const projection = rows.map((r, i) => {
+    bal = bal + (+r.planned || 0) - oneOffByMonth[i];
+    return Math.round(bal * 100) / 100;
+  });
+
   return { start, rows, last, planEnd, plannedTotal, oneOffTotal, oneOffs,
-    oneOffByMonth, oneOffUnassigned };
+    oneOffByMonth, oneOffUnassigned, projection };
 }
 
 // --- Rozpoznawanie wydatków, które wracają co roku -------------------------
@@ -475,6 +484,15 @@ export function renderYear(container, year, actions, allYears = [], yearId = nul
       data: {
         labels: MONTHS.map((m) => m.slice(0, 3)),
         datasets: [
+          {
+            // Liczona z przypisanych miesięcy — rusza się, gdy przesuwasz
+            // wydatek na inny miesiąc. To odpowiedź na "martwy wykres".
+            label: "Prognoza",
+            data: y.projection,
+            borderColor: "#ff9f0a", borderDash: [6, 4],
+            fill: false, tension: .4, borderWidth: 2,
+            pointRadius: 0, pointHoverRadius: 5,
+          },
           {
             label: "Założenie",
             data: y.rows.map((r) => r.assumption),
