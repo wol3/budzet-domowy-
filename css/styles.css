@@ -799,3 +799,9 @@ canvas { max-height: 340px; }
 .one-row.income { background: #f7fcf9; border-color: #d9eede; }
 .one-row.income:hover { border-color: #b9e0c6; }
 .one-total.inc { color: var(--accent-2); }
+
+/* Kolumna "Założenie" jest liczona — wygląda jak wynik, nie jak pole */
+.yr-calc {
+  font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums;
+  text-align: right; color: var(--text); padding-right: 10px;
+}

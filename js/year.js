@@ -18,16 +18,11 @@ export function computeYear(year) {
   const incomes = year.incomes || [];
   const start = +year.startBalance || 0;
 
-  const rows = months.map((m) => {
-    const assumption = num(m.assumption);
-    const actual = num(m.actual);
-    const gap = assumption !== null && actual !== null ? actual - assumption : null;
-    return { ...m, assumption, actual, gap };
-  });
+  // Założenie liczymy tak jak formuła w arkuszu (D6 = D5+C6-K17-K18),
+  // więc nie jest już polem do wpisania — wynika z celu i przypisanych pozycji.
+  const rows = months.map((m) => ({ ...m, actual: num(m.actual) }));
 
   const withActual = rows.filter((r) => r.actual !== null);
-  const last = withActual[withActual.length - 1] || null;
-  const planEnd = rows.length ? rows[rows.length - 1].assumption : null;
   const plannedTotal = rows.reduce((s, r) => s + (+r.planned || 0), 0);
   const oneOffTotal = oneOffs.reduce((s, o) => s + (+o.amount || 0), 0);
 
@@ -61,6 +56,13 @@ export function computeYear(year) {
     bal = bal + (+r.planned || 0) - oneOffByMonth[i] + incomeByMonth[i];
     return Math.round(bal * 100) / 100;
   });
+  // Wyliczone założenie wraca do wierszy, a różnica liczy się względem niego.
+  rows.forEach((r, i) => {
+    r.assumption = projection[i];
+    r.gap = r.actual !== null ? Math.round((r.actual - projection[i]) * 100) / 100 : null;
+  });
+  const last = rows.filter((r) => r.actual !== null).pop() || null;
+  const planEnd = projection.length ? projection[projection.length - 1] : null;
 
   return { start, rows, last, planEnd, plannedTotal, oneOffTotal, oneOffs,
     oneOffByMonth, oneOffUnassigned, projection,
@@ -187,7 +189,7 @@ export function renderYear(container, year, actions, allYears = [], yearId = nul
 
   const head = document.createElement("div");
   head.className = "yr-head";
-  head.innerHTML = `<span>Miesiąc</span><span>Odłożone</span><span>Założenie</span><span>Stan faktyczny</span><span>Różnica</span>`;
+  head.innerHTML = `<span>Miesiąc</span><span>Odłożone</span><span title="Liczone: poprzedni stan + odłożone − wydatki + wpływy">Założenie ƒ</span><span>Stan faktyczny</span><span>Różnica</span>`;
   monthsCard.appendChild(head);
 
   const list = document.createElement("div");
@@ -215,7 +217,9 @@ export function renderYear(container, year, actions, allYears = [], yearId = nul
     };
 
     const planned = mk(m.planned, "planned", "0");
-    const assumption = mk(m.assumption, "assumption", "0");
+    // Założenie nie jest już edytowalne — wynika z celu i przypisanych pozycji.
+    const assumption = document.createElement("span");
+    assumption.className = "yr-calc";
     const actual = mk(m.actual, "actual", "—");
 
     const gap = document.createElement("span");
@@ -223,7 +227,7 @@ export function renderYear(container, year, actions, allYears = [], yearId = nul
 
     row.append(name, planned, assumption, actual, gap);
     list.appendChild(row);
-    refs.rows.push({ row, gap, i });
+    refs.rows.push({ row, gap, calc: assumption, i });
   });
   monthsCard.appendChild(list);
   container.appendChild(monthsCard);
@@ -431,6 +435,9 @@ export function renderYear(container, year, actions, allYears = [], yearId = nul
         r.gap.textContent = (row.gap >= 0 ? "+" : "") + money(row.gap);
         r.gap.className = "yr-gap " + (row.gap >= 0 ? "pos" : "neg");
       }
+      // Poza warunkiem — wyliczone założenie dotyczy KAŻDEGO miesiąca,
+      // także tych ze stanem faktycznym.
+      r.calc.textContent = money(y.projection[r.i]);
       r.row.classList.toggle("has-actual", row && row.actual !== null);
     });
 
@@ -563,15 +570,6 @@ export function renderYear(container, year, actions, allYears = [], yearId = nul
       data: {
         labels: MONTHS.map((m) => m.slice(0, 3)),
         datasets: [
-          {
-            // Liczona z przypisanych miesięcy — rusza się, gdy przesuwasz
-            // wydatek na inny miesiąc. To odpowiedź na "martwy wykres".
-            label: "Prognoza",
-            data: y.projection,
-            borderColor: "#ff9f0a", borderDash: [6, 4],
-            fill: false, tension: .4, borderWidth: 2,
-            pointRadius: 0, pointHoverRadius: 5,
-          },
           {
             label: "Założenie",
             data: y.rows.map((r) => r.assumption),
