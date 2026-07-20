@@ -125,31 +125,23 @@ export function renderBudget(container, budget, actions) {
     del.className = "exp-del"; del.title = "Usuń pozycję"; del.textContent = "✕";
     del.addEventListener("click", () => actions.deleteExpense(person, item.id));
 
-    main.append(ico, cat, amtWrap, check, del);
-
-    // --- meta: udział % + opcjonalny limit ---
-    const meta = document.createElement("div");
-    meta.className = "exp-meta";
+    // Wszystko w jednej linii: udział % i limit też, żeby wiersz był niski.
     const share = document.createElement("span");
     share.className = "exp-share";
-    const limWrap = document.createElement("label");
-    limWrap.className = "exp-lim-wrap";
-    limWrap.title = "Opcjonalny limit miesięczny — pokaże pasek postępu";
-    // Etykieta "limit" pojawia się dopiero, gdy limit jest ustawiony —
-    // pusty limit zostaje samym dyskretnym placeholderem.
-    const limLabel = document.createElement("span");
-    limLabel.className = "exp-lim-label"; limLabel.textContent = "limit";
+
     const lim = moneyInput(item.monthlyLimit || "", "limit"); lim.className = "exp-lim";
+    lim.title = "Opcjonalny limit miesięczny — pokaże pasek postępu";
     lim.addEventListener("input", onEdit(() =>
       actions.updateExpense(person, item.id, { monthlyLimit: parseFloat(lim.value) || 0 })));
-    limWrap.append(limLabel, lim);
-    meta.append(share, limWrap);
 
+    main.append(ico, cat, share, amtWrap, lim, check, del);
+
+    // Pasek postępu limitu — cienki, pod wierszem, tylko gdy ustawiono limit.
     const bar = document.createElement("div");
     bar.className = "limit-bar"; bar.innerHTML = "<i></i>"; bar.hidden = true;
 
-    row.append(main, meta, bar);
-    return { row, item, share, limLabel, bar, barI: bar.querySelector("i") };
+    row.append(main, bar);
+    return { row, item, share, bar, barI: bar.querySelector("i") };
   }
 
   function buildColumn(title, person, list, isMati) {
@@ -255,9 +247,8 @@ export function renderBudget(container, budget, actions) {
     el.classList.toggle("neg", v < 0);
   };
   const updateRow = (r, personTotal) => {
-    r.share.textContent = percent(shareOf(r.item.amount, personTotal)) + " wydatków";
+    r.share.textContent = percent(shareOf(r.item.amount, personTotal));
     const st = limitStatus(r.item.amount, r.item.monthlyLimit);
-    r.limLabel.hidden = !(Number(r.item.monthlyLimit) > 0);
     if (st.level) {
       r.bar.hidden = false;
       r.bar.className = "limit-bar " + st.level;

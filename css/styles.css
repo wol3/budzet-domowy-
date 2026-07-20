@@ -178,12 +178,9 @@ input { font-family: inherit; }
 .exp-total { font-size: 20px; font-weight: 600; }
 /* Dwie pozycje w rzędzie — o połowę mniej scrollowania. Gdy karta zrobi się
    zbyt wąska (mobile, wąskie okno), auto-fill spada do jednej kolumny. */
-/* Karty Mati i Kinia jedna pod drugą (pełna szerokość), a lista wydatków
-   w dwóch kolumnach — nazwy mają miejsce, a scrollowania o połowę mniej. */
-.expenses { grid-template-columns: 1fr; }
-.exp-body { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-content: start; }
+/* Mati i Kinia obok siebie (dwa boksy), lista jednokolumnowa. */
+.exp-body { display: flex; flex-direction: column; gap: 4px; }
 .exp-cat { text-overflow: ellipsis; }
-@media (max-width: 640px) { .exp-body { grid-template-columns: 1fr; } }
 
 /* Nagłówek kolumny z awatarem osoby. */
 .col-head { display: flex; align-items: center; gap: 10px; }
@@ -197,8 +194,9 @@ input { font-family: inherit; }
 .sec-ico { margin-right: 8px; }
 
 /* Wiersz wydatku: jedna linia na pełną szerokość + dyskretna meta pod spodem. */
+/* Niski wiersz w jednej linii — mało padding, wszystko obok siebie. */
 .exp-row {
-  padding: 12px 14px; border-radius: 14px;
+  padding: 4px 12px; border-radius: 11px;
   background: #fff; border: 1px solid var(--line);
   transition: border-color .2s, background .2s;
 }
@@ -211,7 +209,7 @@ input { font-family: inherit; }
 /* Pola-duchy: bez ramek, dopóki nie najedziesz / nie klikniesz. */
 .exp-row input {
   border: 1px solid transparent; background: transparent; border-radius: 9px;
-  padding: 7px 10px; font-size: 15px; color: var(--text); min-width: 0;
+  padding: 6px 8px; font-size: 15px; color: var(--text); min-width: 0;
   transition: background .15s, border-color .15s;
 }
 .exp-row input:hover { background: #f5f5f7; }
@@ -247,20 +245,17 @@ input { font-family: inherit; }
 @media (hover: none) { .exp-del { opacity: 1; } }
 .exp-del:hover { background: #ffe9e7; color: var(--danger); }
 
-/* Meta — drugi plan: udział % i opcjonalny limit. */
-.exp-meta {
-  display: flex; align-items: center; gap: 10px;
-  margin-top: 4px; padding-left: 28px;
-  font-size: 12px; color: var(--text-2);
+/* Udział % — subtelny, tuż przed kwotą. */
+.exp-share {
+  flex: none; font-size: 12px; color: var(--text-2);
+  font-variant-numeric: tabular-nums; text-align: right; min-width: 42px;
 }
-.exp-share { font-variant-numeric: tabular-nums; }
-.exp-lim-wrap { margin-left: auto; display: flex; align-items: center; gap: 2px; }
-.exp-lim-label { color: #b8b8bf; }
+/* Limit — mały ghost input w tej samej linii. */
 .exp-lim {
-  width: 84px; text-align: right; font-size: 12px !important;
-  padding: 3px 8px !important; color: var(--text-2);
+  flex: none; width: 66px; text-align: right; font-size: 12px !important;
+  padding: 5px 7px !important; color: var(--text-2);
 }
-.exp-lim::placeholder { color: #b8b8bf; }
+.exp-lim::placeholder { color: #c2c2c8; }
 
 /* Rata hipoteki — wyróżniona, z odstępem od listy. */
 .exp-row.fixed { background: #fffaf0; border-color: #f0e2c6; margin-bottom: 12px; }
@@ -270,8 +265,8 @@ input { font-family: inherit; }
 .exp-amt-fixed { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
 
 .limit-bar {
-  height: 4px; border-radius: 3px; background: #ececef;
-  overflow: hidden; margin-top: 8px; margin-left: 34px;
+  height: 3px; border-radius: 3px; background: #ececef;
+  overflow: hidden; margin: 3px 4px 4px 28px;
 }
 .limit-bar i { display: block; height: 100%; border-radius: 3px; transition: width .3s; }
 .limit-bar.green i { background: var(--accent-2); }
