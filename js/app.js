@@ -100,13 +100,14 @@ const actions = {
     scheduleMortgageSave();
     renderCurrent();
   },
-  updateMortgageEntry(id, patch) {
+  updateMortgageEntry(id, patch, refresh) {
     const e = state.mortgage?.entries.find((x) => x.id === id);
     if (!e) return;
     Object.assign(e, patch);
     scheduleMortgageSave();
-    // Data i kwota zmieniają wyliczenia i kolejność — odświeżamy widok.
-    if ("date" in patch || "amount" in patch) renderCurrent();
+    // NIE przebudowujemy widoku przy pisaniu (gubiłoby to focus w polu raty).
+    // Wiersz odświeża wyliczenia w miejscu przez przekazany callback.
+    if (refresh) refresh();
   },
   deleteMortgageEntry(id) {
     state.mortgage.entries = state.mortgage.entries.filter((x) => x.id !== id);
@@ -220,8 +221,9 @@ function renderCurrent() {
     renderMortgage(el("view-mortgage"), state.mortgage, {
       importFromExcel: () => actions.importMortgage(),
       addEntry: () => actions.addMortgageEntry(),
-      updateEntry: (id, p) => actions.updateMortgageEntry(id, p),
+      updateEntry: (id, p, refresh) => actions.updateMortgageEntry(id, p, refresh),
       deleteEntry: (id) => actions.deleteMortgageEntry(id),
+      rerender: () => renderCurrent(),
     });
   }
 }

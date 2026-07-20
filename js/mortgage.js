@@ -60,30 +60,40 @@ export function renderMortgage(container, history, actions) {
     return;
   }
 
-  const cur = +m.current.amount;
-  const start = +m.first.amount;
-  const vsStart = cur - start;
-  const vsPeak = cur - (+m.peak.amount);
+  // refresh() jest zdefiniowane niżej; handlery pól odwołują się do niego przez domknięcie.
+  let refresh = () => {};
+  const rowRefs = [];
 
   // ---------- HERO ----------
   const hero = document.createElement("div");
   hero.className = "hero";
-  const tile = (label, value, sub, cls = "") => {
+  const tile = (label, cls = "") => {
     const c = document.createElement("div");
     c.className = "hero-card " + cls;
-    c.innerHTML = `<span class="hero-label">${esc(label)}</span>
-      <strong class="hero-value">${value}</strong>
-      <span class="hero-sub">${sub}</span>`;
+    c.innerHTML = `<span class="hero-label">${esc(label)}</span><strong class="hero-value"></strong><span class="hero-sub"></span>`;
     hero.appendChild(c);
+    return { card: c, val: c.querySelector(".hero-value"), sub: c.querySelector(".hero-sub") };
   };
-  tile("Aktualna rata", money(cur), m.current.date ? `od ${esc(m.current.date)}` : "brak daty");
-  tile("Wobec startu", (vsStart >= 0 ? "+" : "") + money(vsStart),
-    `${percent(Math.abs(vsStart) / start)} ${vsStart >= 0 ? "wyżej" : "niżej"} niż ${money(start)}`,
-    vsStart <= 0 ? "good" : "bad");
-  tile("Wobec szczytu", money(vsPeak),
-    `szczyt ${money(+m.peak.amount)}${m.peak.date ? ` w ${esc(m.peak.date)}` : ""}`, "good");
-  tile("Zmian w historii", String(m.rows.length), "wpisów od początku kredytu", "accent");
+  const tCur = tile("Aktualna rata");
+  const tStart = tile("Wobec startu");
+  const tPeak = tile("Wobec szczytu", "good");
+  const tCount = tile("Zmian w historii", "accent");
   container.appendChild(hero);
+
+  function fillHero(mm) {
+    const cur = +mm.current.amount, start = +mm.first.amount;
+    const vsStart = cur - start, vsPeak = cur - (+mm.peak.amount);
+    tCur.val.textContent = money(cur);
+    tCur.sub.textContent = mm.current.date ? `od ${mm.current.date}` : "brak daty";
+    tStart.val.textContent = (vsStart >= 0 ? "+" : "") + money(vsStart);
+    tStart.sub.textContent = `${percent(Math.abs(vsStart) / (start || 1))} ${vsStart >= 0 ? "wyżej" : "niżej"} niż ${money(start)}`;
+    tStart.card.className = "hero-card " + (vsStart <= 0 ? "good" : "bad");
+    tPeak.val.textContent = money(vsPeak);
+    tPeak.sub.textContent = `szczyt ${money(+mm.peak.amount)}${mm.peak.date ? ` w ${mm.peak.date}` : ""}`;
+    tCount.val.textContent = String(mm.rows.length);
+    tCount.sub.textContent = "wpisów od początku kredytu";
+  }
+  fillHero(m);
 
   // ---------- WYKRES ----------
   const chartCard = document.createElement("section");
@@ -177,8 +187,10 @@ export function renderMortgage(container, history, actions) {
 
     const dateI = document.createElement("input");
     dateI.type = "date"; dateI.className = "mh-date"; dateI.value = r.date || "";
+    // Data to zdarzenie "change" (po zatwierdzeniu) — pełny render jest OK,
+    // bo może zmienić, które wpisy trafiają na wykres.
     dateI.addEventListener("change", () =>
-      actions.updateEntry(r.id, { date: dateI.value || null }));
+      actions.updateEntry(r.id, { date: dateI.value || null }, actions.rerender));
 
     const amtBox = document.createElement("div");
     amtBox.className = "field-money mini";
@@ -186,8 +198,10 @@ export function renderMortgage(container, history, actions) {
     const cur2 = document.createElement("span");
     cur2.className = "field-cur"; cur2.textContent = "zł";
     amtBox.append(amtI, cur2);
+    // Kwota to pisanie znak po znaku — liczymy w miejscu, bez re-renderu,
+    // żeby pole nie traciło focusu.
     amtI.addEventListener("input", () =>
-      actions.updateEntry(r.id, { amount: parseFloat(amtI.value) || 0 }));
+      actions.updateEntry(r.id, { amount: parseFloat(amtI.value) || 0 }, refresh));
 
     const chg = document.createElement("span");
     chg.className = "mh-chg";
@@ -216,8 +230,33 @@ export function renderMortgage(container, history, actions) {
 
     row.append(dateI, amtBox, chg, fs, noteI, del);
     list.appendChild(row);
+    rowRefs.push({ id: r.id, chg, fs });
   });
   tableCard.appendChild(list);
+
+  // Przeliczenie w miejscu: hero, kolumny "Zmiana"/"Od startu" i wykres —
+  // bez odtwarzania pól input.
+  refresh = () => {
+    const mm = computeMortgage(history);
+    fillHero(mm);
+    const byId = new Map(mm.rows.map((r) => [r.id, r]));
+    rowRefs.forEach((ref) => {
+      const r = byId.get(ref.id);
+      if (!r) return;
+      if (r.fromPrev === null) {
+        ref.chg.textContent = "—"; ref.chg.className = "mh-chg muted";
+      } else {
+        ref.chg.textContent = (r.fromPrev > 0 ? "▼ " : r.fromPrev < 0 ? "▲ " : "") + money(Math.abs(r.fromPrev));
+        ref.chg.className = "mh-chg " + (r.fromPrev > 0 ? "good" : r.fromPrev < 0 ? "bad" : "muted");
+      }
+      ref.fs.textContent = (r.fromStart >= 0 ? "+" : "") + money(r.fromStart);
+      ref.fs.className = "mh-start " + (r.fromStart <= 0 ? "good" : "bad");
+    });
+    if (chart) {
+      chart.data.datasets[0].data = mm.dated.map((r) => +r.amount);
+      chart.update();
+    }
+  };
 
   const add = document.createElement("button");
   add.className = "btn-add"; add.textContent = "+ Dodaj zmianę raty";

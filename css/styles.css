@@ -18,6 +18,12 @@
 /* Atrybut [hidden] musi mieć pierwszeństwo nad display:grid/flex poniżej,
    inaczej ekran logowania nie chowa się po zalogowaniu. */
 [hidden] { display: none !important; }
+/* Strzałki spinnera przy type=number na Windows/Chrome zajmują ~17px i
+   rozpychały wiersze wydatków (na macOS są nakładane, więc problem był
+   niewidoczny). Usuwamy je globalnie — kwoty i tak wpisujemy z klawiatury. */
+input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
@@ -170,7 +176,14 @@ input { font-family: inherit; }
   margin-bottom: 14px;
 }
 .exp-total { font-size: 20px; font-weight: 600; }
-.exp-body { display: flex; flex-direction: column; gap: 6px; }
+/* Dwie pozycje w rzędzie — o połowę mniej scrollowania. Gdy karta zrobi się
+   zbyt wąska (mobile, wąskie okno), auto-fill spada do jednej kolumny. */
+/* Karty Mati i Kinia jedna pod drugą (pełna szerokość), a lista wydatków
+   w dwóch kolumnach — nazwy mają miejsce, a scrollowania o połowę mniej. */
+.expenses { grid-template-columns: 1fr; }
+.exp-body { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-content: start; }
+.exp-cat { text-overflow: ellipsis; }
+@media (max-width: 640px) { .exp-body { grid-template-columns: 1fr; } }
 
 /* Nagłówek kolumny z awatarem osoby. */
 .col-head { display: flex; align-items: center; gap: 10px; }
@@ -192,8 +205,8 @@ input { font-family: inherit; }
 .exp-row:hover { border-color: #d8d8dd; }
 .exp-row.paid { background: #f8fcf9; border-color: #d9eede; }
 
-.exp-main { display: flex; align-items: center; gap: 10px; }
-.exp-ico { font-size: 17px; width: 24px; text-align: center; flex: none; }
+.exp-main { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.exp-ico { font-size: 16px; width: 20px; text-align: center; flex: none; }
 
 /* Pola-duchy: bez ramek, dopóki nie najedziesz / nie klikniesz. */
 .exp-row input {
@@ -209,12 +222,13 @@ input { font-family: inherit; }
 .exp-cat { flex: 1; font-weight: 500; }
 
 /* Kwota — najważniejsza liczba w wierszu. */
-.exp-amt-wrap { display: flex; align-items: baseline; gap: 3px; flex: none; }
+.exp-amt-wrap { display: flex; align-items: baseline; gap: 2px; flex: none; }
 .exp-amt {
-  width: 118px; text-align: right; font-size: 17px; font-weight: 600;
+  width: 92px; text-align: right; font-size: 15px; font-weight: 600;
   font-variant-numeric: tabular-nums; letter-spacing: -.01em;
+  padding: 7px 6px;
 }
-.exp-cur { font-size: 13px; color: var(--text-2); font-weight: 500; }
+.exp-cur { font-size: 12px; color: var(--text-2); font-weight: 500; }
 
 .exp-check {
   flex: none; width: 28px; height: 28px; border-radius: 50%;
@@ -236,7 +250,7 @@ input { font-family: inherit; }
 /* Meta — drugi plan: udział % i opcjonalny limit. */
 .exp-meta {
   display: flex; align-items: center; gap: 10px;
-  margin-top: 4px; padding-left: 34px;
+  margin-top: 4px; padding-left: 28px;
   font-size: 12px; color: var(--text-2);
 }
 .exp-share { font-variant-numeric: tabular-nums; }
