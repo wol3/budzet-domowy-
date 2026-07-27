@@ -111,7 +111,8 @@ input { font-family: inherit; }
 .nav { display: flex; gap: 4px; background: #ececed; padding: 4px; border-radius: 12px; }
 .nav-btn {
   border: none; background: transparent; padding: 7px 16px; border-radius: 9px;
-  font-size: 14px; font-weight: 500; color: var(--text-2); transition: all .2s;
+  font-size: 14px; font-weight: 500; color: var(--text-2);
+  transition: background .2s ease, color .2s ease, box-shadow .2s ease, transform .12s var(--ease-out);
 }
 .nav-btn.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
 .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
@@ -857,4 +858,62 @@ canvas { max-height: 340px; }
     transition-duration: .05ms !important;
   }
   .view { animation: none; }
+}
+
+/* ============================================================
+   Warstwa ruchu — spójna w całej apce (Emil Kowalski + redesign).
+   Cel: interfejs "słyszy" dotyk, widoki wchodzą z życiem,
+   klawiatura ma widoczny focus. Bez przesady — to narzędzie codzienne.
+   ============================================================ */
+
+/* Feedback dotyku na WSZYSTKICH klikalnych elementach — scale na :active
+   z mocną krzywą, subtelnie (0.96–0.98). */
+.btn-ghost, .btn-round, .btn-mini, .btn-add, .nav-btn { will-change: transform; }
+.btn-ghost:active, .btn-mini:active { transform: scale(.97); }
+.btn-round:active { transform: scale(.93); }
+.btn-add:active { transform: scale(.99); }
+.nav-btn:active { transform: scale(.96); }
+.btn-round { transition: background .2s ease, transform .12s var(--ease-out); }
+.btn-ghost { transition: background .2s ease, transform .12s var(--ease-out); }
+.btn-mini { transition: background .2s ease, transform .12s var(--ease-out); }
+
+/* Widoczny focus dla klawiatury (a11y). Nie pokazujemy przy kliknięciu myszą. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.btn-primary:focus-visible, .nav-btn:focus-visible { outline-offset: 3px; }
+
+/* "Zapisano ✓" delikatnie wskakuje, zamiast po prostu podmienić tekst. */
+.save-status[data-state="saved"] { animation: pop-in .22s var(--ease-out); }
+
+/* Wejście widoku po zmianie zakładki — karty kaskadują w górę.
+   Klasa .view-enter jest dodawana tylko w switchView i zdejmowana po 650ms,
+   więc edycje danych (te same rendery) NIE odpalają kaskady. */
+.view-enter > * {
+  opacity: 0;
+  animation: rise-in .42s var(--ease-out) forwards;
+}
+.view-enter > *:nth-child(1) { animation-delay: 0ms; }
+.view-enter > *:nth-child(2) { animation-delay: 45ms; }
+.view-enter > *:nth-child(3) { animation-delay: 90ms; }
+.view-enter > *:nth-child(4) { animation-delay: 135ms; }
+.view-enter > *:nth-child(5) { animation-delay: 180ms; }
+.view-enter > *:nth-child(n+6) { animation-delay: 210ms; }
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(-2px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Reduced-motion: zostają tylko delikatne zmiany, znika ruch pozycji. */
+@media (prefers-reduced-motion: reduce) {
+  .view-enter > * { animation: none; opacity: 1; }
+  .save-status[data-state="saved"] { animation: none; }
+  *:active { transform: none !important; }
 }

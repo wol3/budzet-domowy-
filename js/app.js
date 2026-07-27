@@ -316,6 +316,16 @@ function switchView(view) {
   document.querySelectorAll(".view").forEach((v) =>
     v.classList.toggle("active", v.id === `view-${view}`));
   renderCurrent();
+  // Wejście widoku (stagger kart) TYLKO przy zmianie zakładki — klasę zdejmujemy
+  // po animacji, żeby edycje danych (które też wołają renderCurrent) jej nie odpalały.
+  const active = el(`view-${view}`);
+  if (active) {
+    active.classList.remove("view-enter");
+    void active.offsetWidth; // wymuś restart animacji
+    active.classList.add("view-enter");
+    clearTimeout(switchView._t);
+    switchView._t = setTimeout(() => active.classList.remove("view-enter"), 650);
+  }
 }
 
 // --- Miesiące -------------------------------------------------------------
