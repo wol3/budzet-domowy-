@@ -23,6 +23,7 @@ function moneyInput(value, placeholder = "") {
 export function renderBudget(container, budget, actions, recurring = { itemsMati: [], itemsKinia: [] }) {
   container.innerHTML = "";
   const rowRefs = { expensesMati: [], expensesKinia: [] };
+  const fixedRefs = { itemsMati: [], itemsKinia: [] };
 
   // refresh() jest definiowane niżej, ale handlery odwołują się do niego przez domknięcie.
   let refresh = () => {};
@@ -170,12 +171,14 @@ export function renderBudget(container, budget, actions, recurring = { itemsMati
     const cur = document.createElement("span");
     cur.className = "exp-cur"; cur.textContent = "zł";
     amtWrap.append(amt, cur);
+    const share = document.createElement("span");
+    share.className = "exp-share";
     const del = document.createElement("button");
     del.className = "exp-del"; del.title = "Usuń pozycję"; del.textContent = "✕";
     del.addEventListener("click", () => actions.deleteRecurring(person, item.id));
-    main.append(ico, cat, pin, amtWrap, del);
+    main.append(ico, cat, share, pin, amtWrap, del);
     row.append(main);
-    return { row };
+    return { row, item, share };
   }
 
   function buildFixedColumn(title, person, list, isMati) {
@@ -191,22 +194,28 @@ export function renderBudget(container, budget, actions, recurring = { itemsMati
     col.appendChild(head);
 
     // Rata hipoteki to stała pozycja Mati — liczona z pól hipoteki, nieedytowalna tutaj.
-    let rataAmt = null;
+    let rataAmt = null, rataShare = null;
     if (isMati) {
       const rata = document.createElement("div");
       rata.className = "exp-row fixed-item rata";
       rata.innerHTML = `<div class="exp-main">
         <span class="exp-ico">🏦</span>
         <span class="exp-cat-fixed">Rata hipoteki <em>(część Mati)</em></span>
+        <span class="exp-share rata-share"></span>
         <span class="pin">📌</span>
         <div class="exp-amt-wrap"><span class="exp-amt-fixed"></span><span class="exp-cur">zł</span></div></div>`;
       rataAmt = rata.querySelector(".exp-amt-fixed");
+      rataShare = rata.querySelector(".rata-share");
       col.appendChild(rata);
     }
 
     const body = document.createElement("div");
     body.className = "exp-body";
-    (list || []).forEach((item) => body.appendChild(buildFixedRow(person, item).row));
+    (list || []).forEach((item) => {
+      const r = buildFixedRow(person, item);
+      fixedRefs[person].push(r);
+      body.appendChild(r.row);
+    });
     col.appendChild(body);
 
     const add = document.createElement("button");
@@ -214,7 +223,7 @@ export function renderBudget(container, budget, actions, recurring = { itemsMati
     add.addEventListener("click", () => actions.addRecurring(person));
     col.appendChild(add);
 
-    return { col, totalEl: head.querySelector(".exp-total"), rataAmt };
+    return { col, totalEl: head.querySelector(".exp-total"), rataAmt, rataShare };
   }
 
   function buildColumn(title, person, list) {
@@ -359,10 +368,13 @@ export function renderBudget(container, budget, actions, recurring = { itemsMati
     incFoot.querySelector("b").textContent = money(s.totalIncome);
     mortFoot.querySelector("b").textContent = money(mortgageMatiPart(budget.mortgage));
 
-    // Karta stałych: rata + suma pozycji stałych per osoba.
+    // Karta stałych: rata + suma pozycji stałych per osoba + udziały %.
     if (fMati.rataAmt) fMati.rataAmt.textContent = amount(s.matiPart);
+    if (fMati.rataShare) fMati.rataShare.textContent = percent(shareOf(s.matiPart, s.totalMati));
     fMati.totalEl.textContent = money(s.matiPart + s.fixedMati);
     fKinia.totalEl.textContent = money(s.fixedKinia);
+    fixedRefs.itemsMati.forEach((r) => { r.share.textContent = percent(shareOf(r.item.amount, s.totalMati)); });
+    fixedRefs.itemsKinia.forEach((r) => { r.share.textContent = percent(shareOf(r.item.amount, s.totalKinia)); });
 
     // Kolumny zmiennych: tylko sumy zmienne.
     colMati.totalEl.textContent = money(s.varMati);

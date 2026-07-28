@@ -952,3 +952,10 @@ canvas { max-height: 340px; }
   .sum-flow { font-size: 13px; }
   .flow-chip { padding: 6px 10px; }
 }
+
+/* Rata nie może być przyklejona do pierwszej pozycji stałej. */
+.exp-row.fixed-item.rata { margin-bottom: 6px; }
+/* Pola stałych — te same animacje co zmienne, ale hover/focus dobrany do
+   niebieskiego tła karty (na #f6faff szary hover był niewidoczny). */
+.exp-row.fixed-item input:hover { background: #ebf2fd; }
+.exp-row.fixed-item input:focus { background: #fff; }
