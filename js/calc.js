@@ -20,7 +20,10 @@ export function computeSummary(budget, recurring = null) {
   const matiSalary = num(income.matiSalary);
   const kiniaSalary = num(income.kiniaSalary);
   const benefit800 = num(income.benefit800);
-  const totalIncome = matiSalary + kiniaSalary + benefit800;
+  // 800+ NIE jest dochodem — to świadczenie earmarkowane na hipotekę. Zmniejsza
+  // ratę do części Mati (mortgage.coveredBy800) i nie wchodzi ani do dochodu,
+  // ani do kosztów. Dochód łączny = same pensje.
+  const totalIncome = matiSalary + kiniaSalary;
 
   const matiPart = mortgageMatiPart(budget.mortgage);
 
@@ -40,8 +43,9 @@ export function computeSummary(budget, recurring = null) {
   const leftMati = matiSalary - totalMati;
   const leftKinia = kiniaSalary - totalKinia;
 
-  // Koszty łączne obejmują pełną ratę (bo 800+ liczymy jako dochód).
-  const totalCosts = num(budget.mortgage?.totalInstallment) + expMati + expKinia;
+  // Koszty = to, co para płaci z własnej kieszeni: część Mati raty + wydatki.
+  // Część raty pokryta z 800+ NIE jest kosztem.
+  const totalCosts = totalMati + totalKinia;
   const leftBeforeBuffer = totalIncome - totalCosts;
   const buffer = num(budget.buffer);
   const savings = leftBeforeBuffer - buffer;

@@ -59,7 +59,6 @@ export function renderBudget(container, budget, actions, recurring = { itemsMati
   inc.innerHTML = `<h3><span class="sec-ico">💵</span>Dochody</h3>`;
   numberField(inc, "Pensja Mati", budget.income.matiSalary, (v) => actions.updateIncome({ matiSalary: v }));
   numberField(inc, "Pensja Kinia", budget.income.kiniaSalary, (v) => actions.updateIncome({ kiniaSalary: v }));
-  numberField(inc, "Świadczenie 800+", budget.income.benefit800, (v) => actions.updateIncome({ benefit800: v }));
   const incFoot = document.createElement("div");
   incFoot.className = "card-foot";
   incFoot.innerHTML = `<span>Suma dochodów</span><b></b>`;
@@ -307,8 +306,6 @@ export function renderBudget(container, budget, actions, recurring = { itemsMati
   };
   const sFixed = sumRow("Wydatki stałe (co miesiąc)");
   const sVar = sumRow("Zmienne w tym miesiącu");
-  // Domyka math: stałe (część Mati raty) + zmienne + reszta raty z 800+ = koszty.
-  const sCovered = sumRow("Rata pokryta z 800+");
   const sCosts = sumRow("Suma kosztów łącznie");
   const sLeftMati = sumRow("Zostaje Mati", "signed");
   const sLeftKinia = sumRow("Zostaje Kinia", "signed");
@@ -394,7 +391,6 @@ export function renderBudget(container, budget, actions, recurring = { itemsMati
 
     sFixed.textContent = money(s.fixedTotal);
     sVar.textContent = money(s.varTotal);
-    sCovered.textContent = money(num(budget.mortgage?.coveredBy800));
     signed(sLeftMati, s.leftMati);
     signed(sLeftKinia, s.leftKinia);
     sCosts.textContent = money(s.totalCosts);
