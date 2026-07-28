@@ -54,15 +54,22 @@ const allExpenses = (b) => [
 ];
 
 export function renderDashboard(container, ctx) {
-  const { budget, allBudgets, monthId, year, yearId, goals } = ctx;
+  const { budget, allBudgets, monthId, year, yearId, goals, recurring } = ctx;
   destroyCharts();
   container.innerHTML = "";
 
-  const s = computeSummary(budget);
+  const s = computeSummary(budget, recurring);
+  // items = zmienne pozycje (do "Do zapłaty" i pierścieni limitów — stałe nie
+  // mają statusu ani limitu). structItems dokłada stałe do struktury wydatków.
   const items = allExpenses(budget);
+  const structItems = [
+    ...items,
+    ...(recurring?.itemsMati || []).map((e) => ({ ...e, who: "M" })),
+    ...(recurring?.itemsKinia || []).map((e) => ({ ...e, who: "K" })),
+  ];
   const prevId = shiftMonth(monthId, -1);
   const prevBudget = (allBudgets || []).find((b) => b.id === prevId);
-  const prev = prevBudget ? computeSummary(prevBudget) : null;
+  const prev = prevBudget ? computeSummary(prevBudget, recurring) : null;
   const diff = prev ? s.totalCosts - prev.totalCosts : null;
 
   // Historia miesięcy do trendu (bieżący bierzemy ze stanu na żywo).
@@ -70,7 +77,7 @@ export function renderDashboard(container, ctx) {
     { ...budget, id: monthId }]
     .sort((a, b) => String(a.id).localeCompare(String(b.id)))
     .slice(-12)
-    .map((b) => ({ id: b.id, ...computeSummary(b) }));
+    .map((b) => ({ id: b.id, ...computeSummary(b, recurring) }));
 
   // ================= 1. HERO z trendem oszczędności =================
   const hero = card(container, monthLabel(monthId), "", "dash-hero");
@@ -140,7 +147,7 @@ export function renderDashboard(container, ctx) {
 
   const cats = [];
   if (s.matiPart > 0) cats.push({ label: "Rata hipoteki", value: s.matiPart });
-  items.forEach((e) => +e.amount > 0 && cats.push({ label: e.category || "Bez nazwy", value: +e.amount }));
+  structItems.forEach((e) => +e.amount > 0 && cats.push({ label: e.category || "Bez nazwy", value: +e.amount }));
   cats.sort((a, b) => b.value - a.value);
   const catTotal = cats.reduce((a, c) => a + c.value, 0);
 

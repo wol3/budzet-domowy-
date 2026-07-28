@@ -46,18 +46,20 @@ function emptyNote(parent, text) {
   parent.appendChild(p);
 }
 
-export function renderCharts(container, budget, allBudgets) {
+export function renderCharts(container, budget, allBudgets, recurring = null) {
   destroyAll();
   container.innerHTML = "";
-  const s = computeSummary(budget);
+  const s = computeSummary(budget, recurring);
 
-  // Kategorie z obu kolumn + rata hipoteki, posortowane malejąco.
+  // Kategorie: rata + stałe + zmienne obu osób, posortowane malejąco.
   const cats = [];
   if (s.matiPart > 0) cats.push({ label: "Rata hipoteki", who: "M", value: s.matiPart });
-  (budget.expensesMati || []).forEach((e) =>
-    +e.amount > 0 && cats.push({ label: e.category || "Bez nazwy", who: "M", value: +e.amount }));
-  (budget.expensesKinia || []).forEach((e) =>
-    +e.amount > 0 && cats.push({ label: e.category || "Bez nazwy", who: "K", value: +e.amount }));
+  const push = (list, who) => (list || []).forEach((e) =>
+    +e.amount > 0 && cats.push({ label: e.category || "Bez nazwy", who, value: +e.amount }));
+  push(recurring?.itemsMati, "M");
+  push(recurring?.itemsKinia, "K");
+  push(budget.expensesMati, "M");
+  push(budget.expensesKinia, "K");
   cats.sort((a, b) => b.value - a.value);
   const catTotal = cats.reduce((a, c) => a + c.value, 0);
 
@@ -164,7 +166,7 @@ export function renderCharts(container, budget, allBudgets) {
   // ---------- 3. Trend oszczędności ----------
   const trendCard = card(container, "Ostatnie miesiące", "Trend oszczędności");
   const months = (allBudgets || []).map((b) => {
-    const cs = computeSummary(b);
+    const cs = computeSummary(b, recurring);
     return { id: b.id, savings: cs.savings, rate: cs.rateTotal };
   }).slice(-12);
 

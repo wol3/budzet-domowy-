@@ -917,3 +917,38 @@ canvas { max-height: 340px; }
   .save-status[data-state="saved"] { animation: none; }
   *:active { transform: none !important; }
 }
+
+/* ===== Wydatki stałe (co miesiąc) ===== */
+.fixed-card { border: 1px solid #dce8fb; background: linear-gradient(180deg,#fbfdff,#fff); }
+.fixed-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.fixed-head h3 { margin: 0; }
+.fixed-badge {
+  display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600;
+  color: var(--accent); background: #eaf3ff; padding: 3px 10px; border-radius: 20px;
+}
+.fixed-note { font-size: 13px; color: var(--text-2); margin: 0 0 16px; }
+.fixed-card .exp-col { border: 1px solid #e3edfb; }
+.exp-row.fixed-item { background: #f6faff; border-color: #dfeafb; }
+.exp-row.fixed-item:hover { border-color: #b9d4fb; }
+.exp-row.fixed-item.rata { background: #fffaf0; border-color: #f0e2c6; }
+.pin { font-size: 12px; opacity: .55; flex: none; }
+
+/* Pasek przepływu: stałe + zmienne = koszty */
+.sum-flow {
+  display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap;
+  margin: 0 0 22px; font-size: 14px; color: var(--text-2);
+}
+.flow-chip {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 8px 14px; box-shadow: var(--shadow);
+}
+.flow-chip b { font-variant-numeric: tabular-nums; margin-left: 4px; }
+.flow-chip.fixed b { color: var(--accent); }
+.flow-chip.var b { color: var(--amber); }
+.flow-chip.sum b { color: var(--text); }
+.flow-op { color: #b8b8bf; font-weight: 600; }
+
+@media (max-width: 620px) {
+  .sum-flow { font-size: 13px; }
+  .flow-chip { padding: 6px 10px; }
+}

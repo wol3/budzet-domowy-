@@ -22,6 +22,7 @@ const state = {
   year: null,
   knownYears: [],
   mortgage: null,
+  recurring: store.emptyRecurring(),
   allYears: [],
   view: "dash",
   saveTimer: null,
@@ -40,6 +41,16 @@ function scheduleSave() {
       console.error(e);
       setSaveStatus("error");
     }
+  }, 600);
+}
+
+let recurringTimer = null;
+function scheduleRecurringSave() {
+  clearTimeout(recurringTimer);
+  setSaveStatus("saving");
+  recurringTimer = setTimeout(async () => {
+    try { await store.saveRecurring(state.recurring); setSaveStatus("saved"); }
+    catch (e) { console.error(e); setSaveStatus("error"); }
   }, 600);
 }
 
@@ -113,6 +124,23 @@ const actions = {
     state.mortgage.entries = state.mortgage.entries.filter((x) => x.id !== id);
     scheduleMortgageSave();
     renderCurrent();
+  },
+
+  // --- Wydatki stałe (wspólne dla wszystkich miesięcy) ---
+  updateRecurring(person, id, patch) {
+    const it = (state.recurring[person] || []).find((x) => x.id === id);
+    if (!it) return;
+    Object.assign(it, patch);
+    scheduleRecurringSave();
+  },
+  addRecurring(person) {
+    if (!state.recurring[person]) state.recurring[person] = [];
+    state.recurring[person].push({ id: store.newId(), category: "", amount: 0 });
+    scheduleRecurringSave(); renderCurrent();
+  },
+  deleteRecurring(person, id) {
+    state.recurring[person] = (state.recurring[person] || []).filter((x) => x.id !== id);
+    scheduleRecurringSave(); renderCurrent();
   },
 
   // --- Cele ---
@@ -206,13 +234,13 @@ function renderCurrent() {
   if (state.view === "dash") {
     renderDashboard(el("view-dash"), {
       budget: state.budget, allBudgets: state.allBudgets, monthId: state.monthId,
-      year: state.year, yearId: state.yearId, goals: state.goals,
+      year: state.year, yearId: state.yearId, goals: state.goals, recurring: state.recurring,
     }, actions);
   } else if (state.view === "budget") {
-    renderBudget(el("view-budget"), state.budget, actions);
+    renderBudget(el("view-budget"), state.budget, actions, state.recurring);
     renderDefaultGoalBanner();
   } else if (state.view === "charts") {
-    renderCharts(el("view-charts"), state.budget, state.allBudgets);
+    renderCharts(el("view-charts"), state.budget, state.allBudgets, state.recurring);
   } else if (state.view === "goals") {
     renderGoals(el("view-goals"), state.goals, actions);
   } else if (state.view === "year") {
@@ -387,6 +415,8 @@ function boot() {
       renderCurrent(); // od razu pokaż widok (pusty stan), zanim dojdą dane
       // Budżet ładujemy jako pierwszy i niezależnie — błąd celów nie może go blokować.
       try {
+        // Stałe wczytujemy przed miesiącem — wchodzą do sum każdego miesiąca.
+        state.recurring = (await store.loadRecurring()) || store.emptyRecurring();
         await loadMonth(store.currentMonthId());
       } catch (e) {
         console.error("Nie udało się wczytać miesiąca:", e);

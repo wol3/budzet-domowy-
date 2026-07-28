@@ -20,7 +20,7 @@ function moneyInput(value, placeholder = "") {
   return input;
 }
 
-export function renderBudget(container, budget, actions) {
+export function renderBudget(container, budget, actions, recurring = { itemsMati: [], itemsKinia: [] }) {
   container.innerHTML = "";
   const rowRefs = { expensesMati: [], expensesKinia: [] };
 
@@ -144,7 +144,81 @@ export function renderBudget(container, budget, actions) {
     return { row, item, share, bar, barI: bar.querySelector("i") };
   }
 
-  function buildColumn(title, person, list, isMati) {
+  // Wiersz pozycji STAŁEJ — bez limitu i statusu (stałe są "zawsze"),
+  // z pinezką. Edycja idzie do wspólnego dokumentu `recurring`.
+  function buildFixedRow(person, item) {
+    const row = document.createElement("div");
+    row.className = "exp-row fixed-item";
+    const main = document.createElement("div");
+    main.className = "exp-main";
+    const ico = document.createElement("span");
+    ico.className = "exp-ico"; ico.textContent = categoryIcon(item.category);
+    const cat = document.createElement("input");
+    cat.type = "text"; cat.className = "exp-cat"; cat.placeholder = "Nazwa pozycji";
+    cat.value = item.category || "";
+    cat.addEventListener("input", () => {
+      actions.updateRecurring(person, item.id, { category: cat.value });
+      ico.textContent = categoryIcon(cat.value);
+    });
+    const pin = document.createElement("span");
+    pin.className = "pin"; pin.title = "Wydatek stały — liczy się w każdym miesiącu"; pin.textContent = "📌";
+    const amtWrap = document.createElement("div");
+    amtWrap.className = "exp-amt-wrap";
+    const amt = moneyInput(item.amount, "0"); amt.className = "exp-amt";
+    amt.addEventListener("input", onEdit(() =>
+      actions.updateRecurring(person, item.id, { amount: parseFloat(amt.value) || 0 })));
+    const cur = document.createElement("span");
+    cur.className = "exp-cur"; cur.textContent = "zł";
+    amtWrap.append(amt, cur);
+    const del = document.createElement("button");
+    del.className = "exp-del"; del.title = "Usuń pozycję"; del.textContent = "✕";
+    del.addEventListener("click", () => actions.deleteRecurring(person, item.id));
+    main.append(ico, cat, pin, amtWrap, del);
+    row.append(main);
+    return { row };
+  }
+
+  function buildFixedColumn(title, person, list, isMati) {
+    const col = document.createElement("section");
+    col.className = "exp-col card";
+    const head = document.createElement("header");
+    head.innerHTML = `
+      <div class="col-head">
+        <span class="avatar ${isMati ? "m" : "k"}">${isMati ? "M" : "K"}</span>
+        <h3>${esc(title)}</h3>
+      </div>
+      <span class="exp-total"></span>`;
+    col.appendChild(head);
+
+    // Rata hipoteki to stała pozycja Mati — liczona z pól hipoteki, nieedytowalna tutaj.
+    let rataAmt = null;
+    if (isMati) {
+      const rata = document.createElement("div");
+      rata.className = "exp-row fixed-item rata";
+      rata.innerHTML = `<div class="exp-main">
+        <span class="exp-ico">🏦</span>
+        <span class="exp-cat-fixed">Rata hipoteki <em>(część Mati)</em></span>
+        <span class="pin">📌</span>
+        <div class="exp-amt-wrap"><span class="exp-amt-fixed"></span><span class="exp-cur">zł</span></div></div>`;
+      rataAmt = rata.querySelector(".exp-amt-fixed");
+      col.appendChild(rata);
+    }
+
+    const body = document.createElement("div");
+    body.className = "exp-body";
+    (list || []).forEach((item) => body.appendChild(buildFixedRow(person, item).row));
+    col.appendChild(body);
+
+    const add = document.createElement("button");
+    add.className = "btn-add"; add.textContent = "+ Dodaj stałą pozycję";
+    add.addEventListener("click", () => actions.addRecurring(person));
+    col.appendChild(add);
+
+    return { col, totalEl: head.querySelector(".exp-total"), rataAmt };
+  }
+
+  function buildColumn(title, person, list) {
+    const isMati = person === "expensesMati";
     const col = document.createElement("section");
     col.className = "exp-col card";
     const head = document.createElement("header");
@@ -157,22 +231,6 @@ export function renderBudget(container, budget, actions) {
     col.appendChild(head);
     const totalEl = head.querySelector(".exp-total");
 
-    let fixed = null, fixedAmt = null, fixedShare = null;
-    if (isMati) {
-      fixed = document.createElement("div");
-      fixed.className = "exp-row fixed";
-      fixed.innerHTML = `
-        <div class="exp-main">
-          <span class="exp-ico">🏦</span>
-          <span class="exp-cat-fixed">Rata hipoteki <em>(część Mati)</em></span>
-          <div class="exp-amt-wrap"><span class="exp-amt-fixed"></span><span class="exp-cur">zł</span></div>
-        </div>
-        <div class="exp-meta"><span class="exp-share"></span></div>`;
-      fixedAmt = fixed.querySelector(".exp-amt-fixed");
-      fixedShare = fixed.querySelector(".exp-share");
-      col.appendChild(fixed);
-    }
-
     const body = document.createElement("div");
     body.className = "exp-body";
     (list || []).forEach((item) => {
@@ -183,17 +241,45 @@ export function renderBudget(container, budget, actions) {
     col.appendChild(body);
 
     const add = document.createElement("button");
-    add.className = "btn-add"; add.textContent = "+ Dodaj pozycję";
+    add.className = "btn-add"; add.textContent = "+ Dodaj zmienną pozycję";
     add.addEventListener("click", () => actions.addExpense(person));
     col.appendChild(add);
 
-    return { col, totalEl, fixed, fixedAmt, fixedShare };
+    return { col, totalEl };
   }
 
+  // ---------- KARTA WYDATKÓW STAŁYCH ----------
+  const fixedCard = document.createElement("section");
+  fixedCard.className = "card fixed-card";
+  fixedCard.innerHTML = `
+    <div class="fixed-head"><span class="fixed-badge">📌 stałe</span>
+      <h3>Wydatki stałe (co miesiąc)</h3></div>
+    <p class="fixed-note">Definiujesz raz — apka dolicza je do <b>każdego</b> miesiąca.
+       Zmiana kwoty tutaj działa we wszystkich miesiącach.</p>`;
+  const fgrid = document.createElement("div");
+  fgrid.className = "grid-2 expenses";
+  const fMati = buildFixedColumn("Stałe Mati", "itemsMati", recurring.itemsMati, true);
+  const fKinia = buildFixedColumn("Stałe Kinia", "itemsKinia", recurring.itemsKinia, false);
+  fgrid.append(fMati.col, fKinia.col);
+  fixedCard.appendChild(fgrid);
+  container.appendChild(fixedCard);
+
+  // ---------- PASEK PRZEPŁYWU: stałe + zmienne = koszty ----------
+  const flow = document.createElement("div");
+  flow.className = "sum-flow";
+  flow.innerHTML = `
+    <span class="flow-chip fixed">Stałe (co miesiąc) <b class="f-fixed"></b></span>
+    <span class="flow-op">+</span>
+    <span class="flow-chip var">Zmienne (ten miesiąc) <b class="f-var"></b></span>
+    <span class="flow-op">=</span>
+    <span class="flow-chip sum">Wydatki Mati + Kinia <b class="f-sum"></b></span>`;
+  container.appendChild(flow);
+
+  // ---------- ZMIENNE WYDATKI ----------
   const cols = document.createElement("div");
   cols.className = "grid-2 expenses";
-  const colMati = buildColumn("Wydatki Mati", "expensesMati", budget.expensesMati, true);
-  const colKinia = buildColumn("Wydatki Kinia", "expensesKinia", budget.expensesKinia, false);
+  const colMati = buildColumn("Zmienne Mati", "expensesMati", budget.expensesMati);
+  const colKinia = buildColumn("Zmienne Kinia", "expensesKinia", budget.expensesKinia);
   cols.append(colMati.col, colKinia.col);
   container.appendChild(cols);
 
@@ -210,8 +296,8 @@ export function renderBudget(container, budget, actions) {
     grid.appendChild(div);
     return div.querySelector("b");
   };
-  const sMatiExp = sumRow("Suma wydatków Mati");
-  const sKiniaExp = sumRow("Suma wydatków Kinia");
+  const sFixed = sumRow("Wydatki stałe (co miesiąc)");
+  const sVar = sumRow("Zmienne w tym miesiącu");
   const sLeftMati = sumRow("Zostaje Mati", "signed");
   const sLeftKinia = sumRow("Zostaje Kinia", "signed");
   const sCosts = sumRow("Suma kosztów łącznie");
@@ -259,7 +345,7 @@ export function renderBudget(container, budget, actions) {
   };
 
   refresh = () => {
-    const s = computeSummary(budget);
+    const s = computeSummary(budget, recurring);
 
     hIncome.textContent = money(s.totalIncome);
     hCosts.textContent = money(s.totalCosts);
@@ -273,19 +359,27 @@ export function renderBudget(container, budget, actions) {
     incFoot.querySelector("b").textContent = money(s.totalIncome);
     mortFoot.querySelector("b").textContent = money(mortgageMatiPart(budget.mortgage));
 
-    colMati.totalEl.textContent = money(s.totalMati);
-    colKinia.totalEl.textContent = money(s.totalKinia);
-    if (colMati.fixed) {
-      colMati.fixed.hidden = !s.matiPart;
-      colMati.fixedAmt.textContent = amount(s.matiPart);
-      colMati.fixedShare.textContent = percent(shareOf(s.matiPart, s.totalMati)) + " wydatków";
-    }
+    // Karta stałych: rata + suma pozycji stałych per osoba.
+    if (fMati.rataAmt) fMati.rataAmt.textContent = amount(s.matiPart);
+    fMati.totalEl.textContent = money(s.matiPart + s.fixedMati);
+    fKinia.totalEl.textContent = money(s.fixedKinia);
 
+    // Kolumny zmiennych: tylko sumy zmienne.
+    colMati.totalEl.textContent = money(s.varMati);
+    colKinia.totalEl.textContent = money(s.varKinia);
+
+    // Pasek przepływu — sumuje dokładnie to, co widać na kartach (część Mati raty,
+    // nie pełną). Pełne "Koszty łączne" (z całą ratą) są w hero i podsumowaniu.
+    flow.querySelector(".f-fixed").textContent = money(s.fixedTotal);
+    flow.querySelector(".f-var").textContent = money(s.varTotal);
+    flow.querySelector(".f-sum").textContent = money(s.totalMati + s.totalKinia);
+
+    // Udział % zmiennych liczymy względem całkowitych wydatków osoby.
     rowRefs.expensesMati.forEach((r) => updateRow(r, s.totalMati));
     rowRefs.expensesKinia.forEach((r) => updateRow(r, s.totalKinia));
 
-    sMatiExp.textContent = money(s.totalMati);
-    sKiniaExp.textContent = money(s.totalKinia);
+    sFixed.textContent = money(s.fixedTotal);
+    sVar.textContent = money(s.varTotal);
     signed(sLeftMati, s.leftMati);
     signed(sLeftKinia, s.leftKinia);
     sCosts.textContent = money(s.totalCosts);

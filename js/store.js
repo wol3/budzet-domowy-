@@ -129,6 +129,21 @@ export async function saveMortgage(data) {
   await setDoc(doc(db, "mortgage", "history"), data);
 }
 
+// --- Wydatki stałe (wspólne dla wszystkich miesięcy) ---------------------
+
+export function emptyRecurring() {
+  return { itemsMati: [], itemsKinia: [] };
+}
+
+export async function loadRecurring() {
+  const snap = await getDoc(doc(db, "recurring", "current"));
+  return snap.exists() ? { ...emptyRecurring(), ...snap.data() } : null;
+}
+
+export async function saveRecurring(data) {
+  await setDoc(doc(db, "recurring", "current"), data);
+}
+
 // --- Cele ----------------------------------------------------------------
 
 export async function loadGoals() {

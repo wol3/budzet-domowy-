@@ -13,7 +13,9 @@ export function mortgageMatiPart(mortgage) {
 }
 
 // Pełne podsumowanie budżetu dla danego miesiąca.
-export function computeSummary(budget) {
+// `recurring` (opcjonalne) = wydatki stałe wspólne dla wszystkich miesięcy
+// ({ itemsMati, itemsKinia }). Gdy pominięte, zachowanie jak dawniej.
+export function computeSummary(budget, recurring = null) {
   const income = budget.income || {};
   const matiSalary = num(income.matiSalary);
   const kiniaSalary = num(income.kiniaSalary);
@@ -21,10 +23,17 @@ export function computeSummary(budget) {
   const totalIncome = matiSalary + kiniaSalary + benefit800;
 
   const matiPart = mortgageMatiPart(budget.mortgage);
-  const expMati = sumExpenses(budget.expensesMati);
-  const expKinia = sumExpenses(budget.expensesKinia);
 
-  // Rata hipoteczna wchodzi jako pierwsza pozycja wydatków Mati.
+  // Zmienne (per miesiąc) i stałe (wspólne) trzymamy osobno — UI je rozdziela,
+  // ale w kosztach sumują się tak samo.
+  const varMati = sumExpenses(budget.expensesMati);
+  const varKinia = sumExpenses(budget.expensesKinia);
+  const fixedMati = sumExpenses(recurring?.itemsMati);
+  const fixedKinia = sumExpenses(recurring?.itemsKinia);
+  const expMati = varMati + fixedMati;
+  const expKinia = varKinia + fixedKinia;
+
+  // Rata hipoteczna wchodzi jako pierwsza (stała) pozycja wydatków Mati.
   const totalMati = matiPart + expMati;
   const totalKinia = expKinia;
 
@@ -42,6 +51,9 @@ export function computeSummary(budget) {
   return {
     matiSalary, kiniaSalary, benefit800, totalIncome,
     matiPart, expMati, expKinia,
+    varMati, varKinia, fixedMati, fixedKinia,
+    fixedTotal: matiPart + fixedMati + fixedKinia,
+    varTotal: varMati + varKinia,
     totalMati, totalKinia,
     leftMati, leftKinia,
     totalCosts, leftBeforeBuffer, buffer, savings,
