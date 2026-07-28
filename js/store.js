@@ -16,6 +16,9 @@ export function emptyBudget() {
     buffer: 0,
     expensesMati: [],
     expensesKinia: [],
+    // Status "zapłacone" dla pozycji stałych — per miesiąc, kluczowany po id
+    // (kwota stałej jest wspólna, ale płacisz ją osobno w każdym miesiącu).
+    recurringPaid: {},
   };
 }
 

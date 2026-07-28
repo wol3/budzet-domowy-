@@ -172,10 +172,26 @@ export function renderBudget(container, budget, actions, recurring = { itemsMati
     amtWrap.append(amt, cur);
     const share = document.createElement("span");
     share.className = "exp-share";
+
+    // Ptaszek "zapłacone" — status per miesiąc (z budget.recurringPaid).
+    const paidNow = !!(budget.recurringPaid && budget.recurringPaid[item.id]);
+    if (paidNow) row.classList.add("paid");
+    const check = document.createElement("button");
+    check.className = "exp-check" + (paidNow ? " on" : "");
+    check.textContent = "✓";
+    check.title = paidNow ? "Zapłacone — kliknij, by cofnąć" : "Oznacz jako zapłacone";
+    check.addEventListener("click", () => {
+      const next = !row.classList.contains("paid");
+      actions.toggleRecurringPaid(item.id, next);
+      row.classList.toggle("paid", next);
+      check.classList.toggle("on", next);
+      check.title = next ? "Zapłacone — kliknij, by cofnąć" : "Oznacz jako zapłacone";
+    });
+
     const del = document.createElement("button");
     del.className = "exp-del"; del.title = "Usuń pozycję"; del.textContent = "✕";
     del.addEventListener("click", () => actions.deleteRecurring(person, item.id));
-    main.append(ico, cat, share, pin, amtWrap, del);
+    main.append(ico, cat, share, pin, amtWrap, check, del);
     row.append(main);
     return { row, item, share };
   }
@@ -202,9 +218,21 @@ export function renderBudget(container, budget, actions, recurring = { itemsMati
         <span class="exp-cat-fixed">Rata hipoteki <em>(część Mati)</em></span>
         <span class="exp-share rata-share"></span>
         <span class="pin">📌</span>
-        <div class="exp-amt-wrap"><span class="exp-amt-fixed"></span><span class="exp-cur">zł</span></div></div>`;
+        <div class="exp-amt-wrap"><span class="exp-amt-fixed"></span><span class="exp-cur">zł</span></div>
+        <button class="exp-check rata-check" title="Oznacz jako zapłacone">✓</button></div>`;
       rataAmt = rata.querySelector(".exp-amt-fixed");
       rataShare = rata.querySelector(".rata-share");
+      const rataCheck = rata.querySelector(".rata-check");
+      if (budget.recurringPaid && budget.recurringPaid.rata) {
+        rata.classList.add("paid"); rataCheck.classList.add("on");
+      }
+      rataCheck.addEventListener("click", () => {
+        const next = !rata.classList.contains("paid");
+        actions.toggleRecurringPaid("rata", next);
+        rata.classList.toggle("paid", next);
+        rataCheck.classList.toggle("on", next);
+        rataCheck.title = next ? "Zapłacone — kliknij, by cofnąć" : "Oznacz jako zapłacone";
+      });
       col.appendChild(rata);
     }
 

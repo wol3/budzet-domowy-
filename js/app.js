@@ -142,6 +142,12 @@ const actions = {
     state.recurring[person] = (state.recurring[person] || []).filter((x) => x.id !== id);
     scheduleRecurringSave(); renderCurrent();
   },
+  // Status "zapłacone" stałej pozycji — trzymany w dokumencie miesiąca.
+  toggleRecurringPaid(id, paid) {
+    if (!state.budget.recurringPaid) state.budget.recurringPaid = {};
+    state.budget.recurringPaid[id] = paid;
+    scheduleSave();
+  },
 
   // --- Cele ---
   async addGoal(goal) { await store.addGoal(goal); await reloadGoals(); },

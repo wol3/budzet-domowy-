@@ -932,6 +932,9 @@ canvas { max-height: 340px; }
    są wyraźne. Kontekst "stałe" niosą pinezka i niebieskie tło całej karty. */
 .exp-row.fixed-item { background: #fff; }
 .exp-row.fixed-item.rata { background: #fffaf0; border-color: #f0e2c6; }
+/* Reguła białego tła stałych jest później niż .exp-row.paid, więc zapłacone
+   stałe trzeba pozielenić jawnie. */
+.exp-row.fixed-item.paid { background: #f8fcf9; border-color: #d9eede; }
 .pin { font-size: 12px; opacity: .55; flex: none; }
 
 /* Pasek przepływu: stałe + zmienne = koszty */
