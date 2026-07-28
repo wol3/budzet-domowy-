@@ -5,7 +5,7 @@
 // (to gubiło focus po jednym znaku) — wywołujemy tylko refresh(), które
 // aktualizuje wartości pochodne (sumy, %, paski, podsumowanie) w miejscu.
 import { money, amount, percent, esc } from "./util.js";
-import { computeSummary, shareOf, limitStatus, mortgageMatiPart } from "./calc.js";
+import { computeSummary, shareOf, limitStatus, mortgageMatiPart, num } from "./calc.js";
 import { categoryIcon } from "./icons.js";
 import { moneyField } from "./ui.js";
 
@@ -307,9 +307,11 @@ export function renderBudget(container, budget, actions, recurring = { itemsMati
   };
   const sFixed = sumRow("Wydatki stałe (co miesiąc)");
   const sVar = sumRow("Zmienne w tym miesiącu");
+  // Domyka math: stałe (część Mati raty) + zmienne + reszta raty z 800+ = koszty.
+  const sCovered = sumRow("Rata pokryta z 800+");
+  const sCosts = sumRow("Suma kosztów łącznie");
   const sLeftMati = sumRow("Zostaje Mati", "signed");
   const sLeftKinia = sumRow("Zostaje Kinia", "signed");
-  const sCosts = sumRow("Suma kosztów łącznie");
   const sLeftBuf = sumRow("Zostaje (przed buforem)", "signed");
   summary.appendChild(grid);
 
@@ -392,6 +394,7 @@ export function renderBudget(container, budget, actions, recurring = { itemsMati
 
     sFixed.textContent = money(s.fixedTotal);
     sVar.textContent = money(s.varTotal);
+    sCovered.textContent = money(num(budget.mortgage?.coveredBy800));
     signed(sLeftMati, s.leftMati);
     signed(sLeftKinia, s.leftKinia);
     sCosts.textContent = money(s.totalCosts);

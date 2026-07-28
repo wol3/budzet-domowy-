@@ -928,8 +928,9 @@ canvas { max-height: 340px; }
 }
 .fixed-note { font-size: 13px; color: var(--text-2); margin: 0 0 16px; }
 .fixed-card .exp-col { border: 1px solid #e3edfb; }
-.exp-row.fixed-item { background: #f6faff; border-color: #dfeafb; }
-.exp-row.fixed-item:hover { border-color: #b9d4fb; }
+/* Białe jak wiersze zmienne — dzięki temu te same animacje hover/focus pól
+   są wyraźne. Kontekst "stałe" niosą pinezka i niebieskie tło całej karty. */
+.exp-row.fixed-item { background: #fff; }
 .exp-row.fixed-item.rata { background: #fffaf0; border-color: #f0e2c6; }
 .pin { font-size: 12px; opacity: .55; flex: none; }
 
@@ -955,7 +956,3 @@ canvas { max-height: 340px; }
 
 /* Rata nie może być przyklejona do pierwszej pozycji stałej. */
 .exp-row.fixed-item.rata { margin-bottom: 6px; }
-/* Pola stałych — te same animacje co zmienne, ale hover/focus dobrany do
-   niebieskiego tła karty (na #f6faff szary hover był niewidoczny). */
-.exp-row.fixed-item input:hover { background: #ebf2fd; }
-.exp-row.fixed-item input:focus { background: #fff; }
