@@ -30,6 +30,17 @@
     </div>
   </div>
 
+  <!-- Konto bez dostępu -->
+  <div id="denied" class="login-screen" hidden>
+    <div class="login-card">
+      <div class="login-logo">🔒</div>
+      <h1>Brak dostępu</h1>
+      <p class="login-sub">Ta aplikacja jest prywatna.<br>
+        Konto <b id="denied-email"></b> nie ma do niej uprawnień.</p>
+      <button id="denied-logout" class="btn-primary">Wyloguj i zmień konto</button>
+    </div>
+  </div>
+
   <!-- Aplikacja -->
   <div id="app" hidden>
     <header class="topbar">

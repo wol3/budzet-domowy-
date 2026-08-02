@@ -12,6 +12,7 @@ import { YEAR_SEEDS, SEED_YEARS } from "./year-seed.js";
 import { MONTH_SEED } from "./month-seed.js";
 import { el, money, percent, monthLabel, shiftMonth, esc } from "./util.js";
 import { computeSummary } from "./calc.js";
+import { ALLOWED_EMAILS } from "./config.js";
 
 const state = {
   monthId: store.currentMonthId(),
@@ -410,6 +411,7 @@ function wireLogin() {
       el("login-error").textContent = authErrorMessage(err.code);
     }
   });
+  el("denied-logout").addEventListener("click", () => logout());
 }
 
 // --- Start ----------------------------------------------------------------
@@ -418,6 +420,19 @@ function boot() {
   wireHeader();
   watchAuth(
     async (user) => {
+      // Konto spoza listy nie dostaje interfejsu. To warstwa wygody —
+      // właściwą blokadą są reguły Firestore, które odrzucą też zapytania
+      // wysłane z pominięciem tego kodu.
+      const allowed = ALLOWED_EMAILS.map((e) => e.toLowerCase());
+      if (!allowed.includes(String(user.email || "").toLowerCase())) {
+        el("login-screen").hidden = true;
+        el("app").hidden = true;
+        const denied = el("denied");
+        denied.hidden = false;
+        el("denied-email").textContent = user.email || "";
+        return;
+      }
+      el("denied").hidden = true;
       el("login-screen").hidden = true;
       el("app").hidden = false;
       el("user-email").textContent = user.email;
@@ -450,6 +465,7 @@ function boot() {
     },
     () => {
       el("app").hidden = true;
+      el("denied").hidden = true;
       el("login-screen").hidden = false;
     },
   );
