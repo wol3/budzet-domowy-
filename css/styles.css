@@ -273,7 +273,11 @@ input { font-family: inherit; }
 /* Rata hipoteki — wyróżniona, z odstępem od listy. */
 .exp-row.fixed { background: #fffaf0; border-color: #f0e2c6; margin-bottom: 12px; }
 .exp-row.fixed:hover { border-color: #e6d3ad; }
-.exp-cat-fixed { flex: 1; font-weight: 500; font-size: 15px; }
+/* Nazwa raty nie może się łamać — inaczej wiersz jest wyższy od pozostałych. */
+.exp-cat-fixed {
+  flex: 1; min-width: 0; font-weight: 500; font-size: 15px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .exp-cat-fixed em { font-style: normal; color: var(--text-2); font-weight: 400; font-size: 13px; }
 .exp-amt-fixed { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
 
@@ -959,3 +963,20 @@ canvas { max-height: 340px; }
 
 /* Rata nie może być przyklejona do pierwszej pozycji stałej. */
 .exp-row.fixed-item.rata { margin-bottom: 6px; }
+
+/* --- Wyrównanie wiersza raty do pozostałych wydatków ---
+   Rata nie ma przycisku ✕, więc bez spacera jej kwota uciekała o ~36px w prawo.
+   Kwota to span, a nie input — musi mieć ten sam box co .exp-amt. */
+.exp-del-spacer { flex: none; width: 28px; height: 28px; }
+.exp-amt-fixed {
+  width: 92px; text-align: right; font-size: 15px; padding: 7px 6px;
+  /* span dziedziczy line-height 1.5 z body, input ma "normal" — bez tego
+     wiersz raty jest o kilka px wyższy od pozostałych. */
+  line-height: normal;
+}
+.exp-row.fixed-item.rata.paid { background: #f8fcf9; border-color: #d9eede; }
+
+/* Zapłacone — nazwa skreślona i wyciszona. Kwota zostaje czytelna. */
+.exp-row.paid .exp-cat,
+.exp-row.paid .exp-cat-fixed { text-decoration: line-through; color: var(--text-2); }
+.exp-row.paid .exp-ico { opacity: .6; }

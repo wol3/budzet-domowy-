@@ -215,11 +215,12 @@ export function renderBudget(container, budget, actions, recurring = { itemsMati
       rata.className = "exp-row fixed-item rata";
       rata.innerHTML = `<div class="exp-main">
         <span class="exp-ico">🏦</span>
-        <span class="exp-cat-fixed">Rata hipoteki <em>(część Mati)</em></span>
+        <span class="exp-cat-fixed" title="Część raty hipotecznej obciążająca budżet Mati (po pokryciu z 800+)">Rata hipoteki <em>(Mati)</em></span>
         <span class="exp-share rata-share"></span>
         <span class="pin">📌</span>
         <div class="exp-amt-wrap"><span class="exp-amt-fixed"></span><span class="exp-cur">zł</span></div>
-        <button class="exp-check rata-check" title="Oznacz jako zapłacone">✓</button></div>`;
+        <button class="exp-check rata-check" title="Oznacz jako zapłacone">✓</button>
+        <span class="exp-del-spacer" aria-hidden="true"></span></div>`;
       rataAmt = rata.querySelector(".exp-amt-fixed");
       rataShare = rata.querySelector(".rata-share");
       const rataCheck = rata.querySelector(".rata-check");
