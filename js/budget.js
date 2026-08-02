@@ -5,7 +5,7 @@
 // (to gubiło focus po jednym znaku) — wywołujemy tylko refresh(), które
 // aktualizuje wartości pochodne (sumy, %, paski, podsumowanie) w miejscu.
 import { money, amount, percent, esc } from "./util.js";
-import { computeSummary, shareOf, limitStatus, mortgageMatiPart, num } from "./calc.js";
+import { computeSummary, shareOf, mortgageMatiPart, num, isActiveIn } from "./calc.js";
 import { categoryIcon } from "./icons.js";
 import { moneyField } from "./ui.js";
 
@@ -20,7 +20,7 @@ function moneyInput(value, placeholder = "") {
   return input;
 }
 
-export function renderBudget(container, budget, actions, recurring = { itemsMati: [], itemsKinia: [] }) {
+export function renderBudget(container, budget, actions, recurring = { itemsMati: [], itemsKinia: [] }, monthId = null) {
   container.innerHTML = "";
   const rowRefs = { expensesMati: [], expensesKinia: [] };
   const fixedRefs = { itemsMati: [], itemsKinia: [] };
@@ -78,9 +78,7 @@ export function renderBudget(container, budget, actions, recurring = { itemsMati
   container.appendChild(top);
 
   // ---------- WYDATKI ----------
-  // Wiersz: [ikona] [nazwa ......] [KWOTA zł] [✓] [✕]
-  //         [meta: % udziału ........... limit (opcjonalny)]
-  //         [pasek postępu — tylko gdy ustawiono limit]
+  // Wiersz: [ikona] [nazwa ......] [% udziału] [KWOTA zł] [✓] [✕]
   function buildRow(person, item) {
     const row = document.createElement("div");
     row.className = "exp-row" + (item.paid ? " paid" : "");
@@ -125,23 +123,13 @@ export function renderBudget(container, budget, actions, recurring = { itemsMati
     del.className = "exp-del"; del.title = "Usuń pozycję"; del.textContent = "✕";
     del.addEventListener("click", () => actions.deleteExpense(person, item.id));
 
-    // Wszystko w jednej linii: udział % i limit też, żeby wiersz był niski.
+    // Wszystko w jednej linii — wiersz zostaje niski.
     const share = document.createElement("span");
     share.className = "exp-share";
 
-    const lim = moneyInput(item.monthlyLimit || "", "limit"); lim.className = "exp-lim";
-    lim.title = "Opcjonalny limit miesięczny — pokaże pasek postępu";
-    lim.addEventListener("input", onEdit(() =>
-      actions.updateExpense(person, item.id, { monthlyLimit: parseFloat(lim.value) || 0 })));
-
-    main.append(ico, cat, share, amtWrap, lim, check, del);
-
-    // Pasek postępu limitu — cienki, pod wierszem, tylko gdy ustawiono limit.
-    const bar = document.createElement("div");
-    bar.className = "limit-bar"; bar.innerHTML = "<i></i>"; bar.hidden = true;
-
-    row.append(main, bar);
-    return { row, item, share, bar, barI: bar.querySelector("i") };
+    main.append(ico, cat, share, amtWrap, check, del);
+    row.append(main);
+    return { row, item, share };
   }
 
   // Wiersz pozycji STAŁEJ — bez limitu i statusu (stałe są "zawsze"),
@@ -160,8 +148,20 @@ export function renderBudget(container, budget, actions, recurring = { itemsMati
       actions.updateRecurring(person, item.id, { category: cat.value });
       ico.textContent = categoryIcon(cat.value);
     });
-    const pin = document.createElement("span");
-    pin.className = "pin"; pin.title = "Wydatek stały — liczy się w każdym miesiącu"; pin.textContent = "📌";
+    // Chip zakresu: klik rozwija inline edytor "od / do". Bez zakresu pokazuje
+    // samą pinezkę (obowiązuje zawsze).
+    const pin = document.createElement("button");
+    pin.className = "pin range-chip";
+    const rangeLabel = () => {
+      const f = item.from, t = item.to;
+      if (!f && !t) return "📌";
+      const short = (m) => m ? m.split("-")[1] + "." + m.split("-")[0].slice(2) : "";
+      if (f && t) return `📌 ${short(f)}–${short(t)}`;
+      if (t) return `📌 do ${short(t)}`;
+      return `📌 od ${short(f)}`;
+    };
+    pin.textContent = rangeLabel();
+    pin.title = "Od kiedy do kiedy obowiązuje — kliknij, by ustawić";
     const amtWrap = document.createElement("div");
     amtWrap.className = "exp-amt-wrap";
     const amt = moneyInput(item.amount, "0"); amt.className = "exp-amt";
@@ -192,7 +192,26 @@ export function renderBudget(container, budget, actions, recurring = { itemsMati
     del.className = "exp-del"; del.title = "Usuń pozycję"; del.textContent = "✕";
     del.addEventListener("click", () => actions.deleteRecurring(person, item.id));
     main.append(ico, cat, share, pin, amtWrap, check, del);
-    row.append(main);
+
+    const range = document.createElement("div");
+    range.className = "range-editor"; range.hidden = true;
+    range.innerHTML = `
+      <label>od <input type="month" class="r-from" value="${item.from || ""}"></label>
+      <label>do <input type="month" class="r-to" value="${item.to || ""}"></label>
+      <span class="range-hint">puste = bez ograniczenia</span>`;
+    const rFrom = range.querySelector(".r-from");
+    const rTo = range.querySelector(".r-to");
+    const onRange = () => {
+      actions.updateRecurring(person, item.id, { from: rFrom.value || null, to: rTo.value || null });
+      pin.textContent = rangeLabel();
+      // Zmiana zakresu może wyrzucić pozycję z bieżącego miesiąca — przerysuj.
+      actions.rerender();
+    };
+    rFrom.addEventListener("change", onRange);
+    rTo.addEventListener("change", onRange);
+    pin.addEventListener("click", () => { range.hidden = !range.hidden; });
+
+    row.append(main, range);
     return { row, item, share };
   }
 
@@ -295,10 +314,20 @@ export function renderBudget(container, budget, actions, recurring = { itemsMati
        Zmiana kwoty tutaj działa we wszystkich miesiącach.</p>`;
   const fgrid = document.createElement("div");
   fgrid.className = "grid-2 expenses";
-  const fMati = buildFixedColumn("Stałe Mati", "itemsMati", recurring.itemsMati, true);
-  const fKinia = buildFixedColumn("Stałe Kinia", "itemsKinia", recurring.itemsKinia, false);
+  // Pokazujemy tylko pozycje obowiązujące w tym miesiącu — inaczej lista
+  // pęczniałaby o wszystko, co kiedykolwiek istniało.
+  const actMati = (recurring.itemsMati || []).filter((i) => isActiveIn(i, monthId));
+  const actKinia = (recurring.itemsKinia || []).filter((i) => isActiveIn(i, monthId));
+  const hiddenCount = (recurring.itemsMati || []).length + (recurring.itemsKinia || []).length
+    - actMati.length - actKinia.length;
+  const fMati = buildFixedColumn("Stałe Mati", "itemsMati", actMati, true);
+  const fKinia = buildFixedColumn("Stałe Kinia", "itemsKinia", actKinia, false);
   fgrid.append(fMati.col, fKinia.col);
   fixedCard.appendChild(fgrid);
+  if (hiddenCount > 0) {
+    fixedCard.insertAdjacentHTML("beforeend",
+      `<p class="fixed-hidden">${hiddenCount} ${hiddenCount === 1 ? "pozycja nie obowiązuje" : "pozycji nie obowiązuje"} w tym miesiącu (poza zakresem dat).</p>`);
+  }
   container.appendChild(fixedCard);
 
   // ---------- PASEK PRZEPŁYWU: stałe + zmienne = koszty ----------
@@ -371,18 +400,10 @@ export function renderBudget(container, budget, actions, recurring = { itemsMati
   };
   const updateRow = (r, personTotal) => {
     r.share.textContent = percent(shareOf(r.item.amount, personTotal));
-    const st = limitStatus(r.item.amount, r.item.monthlyLimit);
-    if (st.level) {
-      r.bar.hidden = false;
-      r.bar.className = "limit-bar " + st.level;
-      r.barI.style.width = Math.min(100, st.ratio * 100).toFixed(0) + "%";
-    } else {
-      r.bar.hidden = true;
-    }
   };
 
   refresh = () => {
-    const s = computeSummary(budget, recurring);
+    const s = computeSummary(budget, recurring, monthId);
 
     hIncome.textContent = money(s.totalIncome);
     hCosts.textContent = money(s.totalCosts);

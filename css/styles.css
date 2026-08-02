@@ -980,3 +980,50 @@ canvas { max-height: 340px; }
 .exp-row.paid .exp-cat,
 .exp-row.paid .exp-cat-fixed { text-decoration: line-through; color: var(--text-2); }
 .exp-row.paid .exp-ico { opacity: .6; }
+
+/* ===== Zakres obowiązywania wydatku stałego ===== */
+.range-chip {
+  border: none; background: transparent; padding: 2px 5px; border-radius: 7px;
+  font-size: 11px; color: var(--text-2); white-space: nowrap; flex: none;
+  transition: background .15s ease, transform .12s var(--ease-out);
+}
+.range-chip:hover { background: #f0f0f2; }
+.range-chip:active { transform: scale(.94); }
+.range-editor {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 8px 4px 4px 30px; font-size: 12px; color: var(--text-2);
+}
+.range-editor label { display: flex; align-items: center; gap: 5px; }
+.range-editor input {
+  border: 1px solid var(--line); background: #fff; border-radius: 8px;
+  padding: 4px 7px; font-size: 12px; font-family: inherit; color: var(--text);
+}
+.range-editor input:focus {
+  outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,113,227,.12);
+}
+.range-hint { color: #b8b8bf; }
+.fixed-hidden { margin: 12px 0 0; font-size: 12px; color: var(--text-2); }
+
+/* ===== Nawigator miesięcy na pulpicie ===== */
+.cal-head {
+  display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 14px;
+}
+.cal-year { font-size: 20px; font-weight: 600; min-width: 70px; text-align: center; }
+.cal-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.cal-month {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  padding: 10px 12px; border-radius: 12px; text-align: left;
+  border: 1px solid var(--line); background: #fff;
+  transition: border-color .18s ease, background .18s ease, transform .12s var(--ease-out);
+}
+.cal-month:hover { border-color: #c9c9cf; background: #fafafc; }
+.cal-month:active { transform: scale(.97); }
+.cal-month.has-data { border-color: #dce8fb; background: #f8fbff; }
+.cal-month.current { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,113,227,.10); }
+.cal-m { font-size: 13px; font-weight: 500; text-transform: capitalize; }
+.cal-v { font-size: 12px; font-variant-numeric: tabular-nums; }
+.cal-v.pos { color: var(--accent-2); }
+.cal-v.neg { color: var(--danger); }
+.cal-v.muted { color: #c4c4c9; }
+
+@media (max-width: 760px) { .cal-grid { grid-template-columns: repeat(2, 1fr); } }

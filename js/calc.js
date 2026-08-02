@@ -12,10 +12,31 @@ export function mortgageMatiPart(mortgage) {
   return num(mortgage?.totalInstallment) - num(mortgage?.coveredBy800);
 }
 
+// Czy pozycja stała obowiązuje w danym miesiącu?
+// from/to to "YYYY-MM" (puste = bez ograniczenia). Dzięki temu przedszkole może
+// skończyć się w sierpniu, a szkoła zacząć we wrześniu z inną kwotą.
+export function isActiveIn(item, monthId) {
+  if (!monthId) return true;              // brak kontekstu miesiąca = licz wszystko
+  const from = item?.from || null;
+  const to = item?.to || null;
+  if (from && monthId < from) return false;
+  if (to && monthId > to) return false;
+  return true;
+}
+
+// Pozycje stałe obowiązujące w danym miesiącu.
+export function activeRecurring(recurring, monthId) {
+  return {
+    itemsMati: (recurring?.itemsMati || []).filter((i) => isActiveIn(i, monthId)),
+    itemsKinia: (recurring?.itemsKinia || []).filter((i) => isActiveIn(i, monthId)),
+  };
+}
+
 // Pełne podsumowanie budżetu dla danego miesiąca.
-// `recurring` (opcjonalne) = wydatki stałe wspólne dla wszystkich miesięcy
-// ({ itemsMati, itemsKinia }). Gdy pominięte, zachowanie jak dawniej.
-export function computeSummary(budget, recurring = null) {
+// `recurring` = wydatki stałe ({ itemsMati, itemsKinia }); `monthId` ogranicza
+// je do tych, które w tym miesiącu faktycznie obowiązują.
+export function computeSummary(budget, recurring = null, monthId = null) {
+  if (recurring && monthId) recurring = activeRecurring(recurring, monthId);
   const income = budget.income || {};
   const matiSalary = num(income.matiSalary);
   const kiniaSalary = num(income.kiniaSalary);

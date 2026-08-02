@@ -2,7 +2,7 @@
 // donut z sumą w środku + własna legenda, poziome porównanie osób,
 // gradientowy trend oszczędności i ranking największych kategorii.
 import { money, percent, monthLabel, esc } from "./util.js";
-import { computeSummary } from "./calc.js";
+import { computeSummary, activeRecurring } from "./calc.js";
 import { eyebrow } from "./ui.js";
 import { categoryIcon } from "./icons.js";
 
@@ -46,18 +46,19 @@ function emptyNote(parent, text) {
   parent.appendChild(p);
 }
 
-export function renderCharts(container, budget, allBudgets, recurring = null) {
+export function renderCharts(container, budget, allBudgets, recurring = null, monthId = null) {
   destroyAll();
   container.innerHTML = "";
-  const s = computeSummary(budget, recurring);
+  const s = computeSummary(budget, recurring, monthId);
 
   // Kategorie: rata + stałe + zmienne obu osób, posortowane malejąco.
   const cats = [];
   if (s.matiPart > 0) cats.push({ label: "Rata hipoteki", who: "M", value: s.matiPart });
   const push = (list, who) => (list || []).forEach((e) =>
     +e.amount > 0 && cats.push({ label: e.category || "Bez nazwy", who, value: +e.amount }));
-  push(recurring?.itemsMati, "M");
-  push(recurring?.itemsKinia, "K");
+  const actRec = activeRecurring(recurring, monthId);
+  push(actRec.itemsMati, "M");
+  push(actRec.itemsKinia, "K");
   push(budget.expensesMati, "M");
   push(budget.expensesKinia, "K");
   cats.sort((a, b) => b.value - a.value);
@@ -166,7 +167,7 @@ export function renderCharts(container, budget, allBudgets, recurring = null) {
   // ---------- 3. Trend oszczędności ----------
   const trendCard = card(container, "Ostatnie miesiące", "Trend oszczędności");
   const months = (allBudgets || []).map((b) => {
-    const cs = computeSummary(b, recurring);
+    const cs = computeSummary(b, recurring, String(b.id));
     return { id: b.id, savings: cs.savings, rate: cs.rateTotal };
   }).slice(-12);
 

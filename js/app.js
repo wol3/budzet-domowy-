@@ -85,7 +85,7 @@ const actions = {
   },
   // Zmiany strukturalne (dodanie/usunięcie wiersza) wymagają pełnego renderu.
   addExpense(person) {
-    state.budget[person].push({ id: store.newId(), category: "", amount: 0, monthlyLimit: 0, paid: false });
+    state.budget[person].push({ id: store.newId(), category: "", amount: 0, paid: false });
     scheduleSave(); renderCurrent();
   },
   deleteExpense(person, id) {
@@ -135,13 +135,15 @@ const actions = {
   },
   addRecurring(person) {
     if (!state.recurring[person]) state.recurring[person] = [];
-    state.recurring[person].push({ id: store.newId(), category: "", amount: 0 });
+    state.recurring[person].push({ id: store.newId(), category: "", amount: 0, from: null, to: null });
     scheduleRecurringSave(); renderCurrent();
   },
   deleteRecurring(person, id) {
     state.recurring[person] = (state.recurring[person] || []).filter((x) => x.id !== id);
     scheduleRecurringSave(); renderCurrent();
   },
+  // Pełne przerysowanie — po zmianie zakresu dat pozycja może zniknąć z miesiąca.
+  rerender() { renderCurrent(); },
   // Status "zapłacone" stałej pozycji — trzymany w dokumencie miesiąca.
   toggleRecurringPaid(id, paid) {
     if (!state.budget.recurringPaid) state.budget.recurringPaid = {};
@@ -241,12 +243,13 @@ function renderCurrent() {
     renderDashboard(el("view-dash"), {
       budget: state.budget, allBudgets: state.allBudgets, monthId: state.monthId,
       year: state.year, yearId: state.yearId, goals: state.goals, recurring: state.recurring,
+      onPickMonth: async (id) => { await loadMonth(id); switchView("budget"); },
     }, actions);
   } else if (state.view === "budget") {
-    renderBudget(el("view-budget"), state.budget, actions, state.recurring);
+    renderBudget(el("view-budget"), state.budget, actions, state.recurring, state.monthId);
     renderDefaultGoalBanner();
   } else if (state.view === "charts") {
-    renderCharts(el("view-charts"), state.budget, state.allBudgets, state.recurring);
+    renderCharts(el("view-charts"), state.budget, state.allBudgets, state.recurring, state.monthId);
   } else if (state.view === "goals") {
     renderGoals(el("view-goals"), state.goals, actions);
   } else if (state.view === "year") {

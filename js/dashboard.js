@@ -2,7 +2,7 @@
 // Zasada: dashboard pokazuje KSZTAŁT danych (trend, proporcje, postęp).
 // Po surowe liczby są pozostałe zakładki — tutaj mają rządzić wykresy.
 import { money, percent, monthLabel, monthLocative, shiftMonth, esc } from "./util.js";
-import { computeSummary, limitStatus } from "./calc.js";
+import { computeSummary, activeRecurring } from "./calc.js";
 import { computeYear } from "./year.js";
 import { eyebrow } from "./ui.js";
 import { categoryIcon } from "./icons.js";
@@ -58,18 +58,19 @@ export function renderDashboard(container, ctx) {
   destroyCharts();
   container.innerHTML = "";
 
-  const s = computeSummary(budget, recurring);
+  const s = computeSummary(budget, recurring, monthId);
   // items = zmienne pozycje (do "Do zapłaty" i pierścieni limitów — stałe nie
   // mają statusu ani limitu). structItems dokłada stałe do struktury wydatków.
   const items = allExpenses(budget);
+  const actRec = activeRecurring(recurring, monthId);
   const structItems = [
     ...items,
-    ...(recurring?.itemsMati || []).map((e) => ({ ...e, who: "M" })),
-    ...(recurring?.itemsKinia || []).map((e) => ({ ...e, who: "K" })),
+    ...actRec.itemsMati.map((e) => ({ ...e, who: "M" })),
+    ...actRec.itemsKinia.map((e) => ({ ...e, who: "K" })),
   ];
   const prevId = shiftMonth(monthId, -1);
   const prevBudget = (allBudgets || []).find((b) => b.id === prevId);
-  const prev = prevBudget ? computeSummary(prevBudget, recurring) : null;
+  const prev = prevBudget ? computeSummary(prevBudget, recurring, prevId) : null;
   const diff = prev ? s.totalCosts - prev.totalCosts : null;
 
   // Historia miesięcy do trendu (bieżący bierzemy ze stanu na żywo).
@@ -77,7 +78,7 @@ export function renderDashboard(container, ctx) {
     { ...budget, id: monthId }]
     .sort((a, b) => String(a.id).localeCompare(String(b.id)))
     .slice(-12)
-    .map((b) => ({ id: b.id, ...computeSummary(b, recurring) }));
+    .map((b) => ({ id: b.id, ...computeSummary(b, recurring, String(b.id)) }));
 
   // ================= 1. HERO z trendem oszczędności =================
   const hero = card(container, monthLabel(monthId), "", "dash-hero");
@@ -247,32 +248,54 @@ export function renderDashboard(container, ctx) {
     }));
   }
 
-  // ================= 3. Pierścienie limitów =================
-  const withLimit = items.filter((e) => +e.monthlyLimit > 0);
-  const ringCard = card(container, "Limity miesięczne", "Ile zostało w kategoriach");
-  if (!withLimit.length) {
-    ringCard.insertAdjacentHTML("beforeend", `
-      <p class="empty">Nie masz jeszcze ustawionych limitów. Ustaw je przy pozycjach
-      w zakładce „Ten miesiąc”, a tutaj pojawią się pierścienie postępu.</p>`);
-  } else {
-    const wrap = document.createElement("div");
-    wrap.className = "rings";
-    withLimit
-      .sort((a, b) => (+b.amount / +b.monthlyLimit) - (+a.amount / +a.monthlyLimit))
-      .forEach((e) => {
-        const st = limitStatus(e.amount, e.monthlyLimit);
-        const left = (+e.monthlyLimit) - (+e.amount);
-        const cell = document.createElement("div");
-        cell.className = "ring-cell";
-        cell.innerHTML = `
-          <div class="ring-wrap">${ringSvg(st.ratio, LEVEL_COLOR[st.level] || "#8e8e93")}
-            <span class="ring-ico">${categoryIcon(e.category)}</span></div>
-          <span class="ring-name">${esc(e.category || "Bez nazwy")}</span>
-          <span class="ring-val ${left >= 0 ? "" : "over"}">${money(Math.abs(left))} ${left >= 0 ? "zostało" : "ponad"}</span>`;
-        wrap.appendChild(cell);
-      });
-    ringCard.appendChild(wrap);
+  // ================= 3. Nawigator miesięcy =================
+  // Skok do dowolnego miesiąca z jednego miejsca (zamiast klikania strzałkami).
+  const navCard = card(container, "Skocz do miesiąca", "Kalendarz");
+  const navWrap = document.createElement("div");
+  navWrap.className = "cal-nav";
+  const curYear = Number(String(monthId).slice(0, 4));
+  let shownYear = ctx.calYear ?? curYear;
+
+  const head = document.createElement("div");
+  head.className = "cal-head";
+  head.innerHTML = `<button class="btn-round cal-prev" aria-label="Poprzedni rok">‹</button>
+    <strong class="cal-year"></strong>
+    <button class="btn-round cal-next" aria-label="Następny rok">›</button>`;
+  const gridM = document.createElement("div");
+  gridM.className = "cal-grid";
+  navWrap.append(head, gridM);
+  navCard.appendChild(navWrap);
+
+  const MS = ["styczeń","luty","marzec","kwiecień","maj","czerwiec",
+    "lipiec","sierpień","wrzesień","październik","listopad","grudzień"];
+  const known = new Set((allBudgets || []).map((b) => String(b.id)));
+
+  function drawCal() {
+    head.querySelector(".cal-year").textContent = shownYear;
+    gridM.innerHTML = "";
+    MS.forEach((name, i) => {
+      const id = `${shownYear}-${String(i + 1).padStart(2, "0")}`;
+      const b = document.createElement("button");
+      b.className = "cal-month";
+      b.classList.toggle("current", id === monthId);
+      b.classList.toggle("has-data", known.has(id));
+      b.innerHTML = `<span class="cal-m">${name}</span>`;
+      // Miesiąc z danymi pokazuje od razu, ile zostało po buforze.
+      const bud = (allBudgets || []).find((x) => String(x.id) === id);
+      if (bud) {
+        const cs = computeSummary(bud, recurring, id);
+        b.insertAdjacentHTML("beforeend",
+          `<span class="cal-v ${cs.savings >= 0 ? "pos" : "neg"}">${money(cs.savings)}</span>`);
+      } else {
+        b.insertAdjacentHTML("beforeend", `<span class="cal-v muted">—</span>`);
+      }
+      b.addEventListener("click", () => ctx.onPickMonth && ctx.onPickMonth(id));
+      gridM.appendChild(b);
+    });
   }
+  head.querySelector(".cal-prev").addEventListener("click", () => { shownYear--; drawCal(); });
+  head.querySelector(".cal-next").addEventListener("click", () => { shownYear++; drawCal(); });
+  drawCal();
 
   // ================= 4. Do zapłaty + Cele =================
   const grid2 = document.createElement("div");
